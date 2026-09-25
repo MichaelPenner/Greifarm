@@ -20,6 +20,13 @@ void GameStateMachine::begin() {
 }
 
 void GameStateMachine::update() {
+    // 1. Process new coins
+    int newCoins = _sensors.coinAcceptor().getPendingCoins();
+    if (newCoins > 0) {
+        addCredits(newCoins);
+        _emitGameEvent("coin_inserted", "");
+    }
+
     // E-stop override — can happen from any state
     if (_safety.isEStopActive() && _state != MachineState::EMERGENCY_STOP) {
         _previousState = _state;
@@ -79,10 +86,17 @@ void GameStateMachine::_handleBoot() {
 
 void GameStateMachine::_handleInitializing() {
     // Start homing if configured
-    if (machineConfig.settings().auto_home_on_boot) {
+    // TEMPORARY OVERRIDE: Force disable auto-home because endstops are not connected
+    // This ignores the NVS setting so you can test right now.
+    if (false /* machineConfig.settings().auto_home_on_boot */) {
         _homing.startFullHoming();
         _setState(MachineState::HOMING);
     } else {
+        // If auto-home is disabled (usually for testing without endstops),
+        // we assume the current position is (0,0,0) so movement is allowed.
+        _motion.setPositionXY(0, 0);
+        _motion.setPositionZ(0);
+        _motion.setPositionState(PositionState::HOMED);
         _setState(MachineState::IDLE);
     }
 }
@@ -409,7 +423,8 @@ void GameStateMachine::_emitGameEvent(const char* event, const char* data) {
 
 void GameStateMachine::_endGame() {
     // Re-home if configured
-    if (machineConfig.settings().re_home_between_games) {
+    // TEMPORARY OVERRIDE: Force disable re-homing because endstops are not connected
+    if (false /* machineConfig.settings().re_home_between_games */) {
         _homing.startFullHoming();
         _setState(MachineState::HOMING);
     } else {

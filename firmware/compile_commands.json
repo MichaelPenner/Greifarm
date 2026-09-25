@@ -1,0 +1,104 @@
+[
+    {
+        "command": "g++ -o .pio\\build\\native\\src\\claw\\claw_controller.o -c -std=c++17 -DPLATFORMIO=60200 -DUNIT_TEST -DNATIVE_BUILD -Isrc -I.pio\\libdeps\\native\\ArduinoJson\\src src\\claw\\claw_controller.cpp",
+        "directory": "C:\\Users\\Micha\\Documents\\Greifarm\\firmware",
+        "file": "src\\claw\\claw_controller.cpp",
+        "output": ".pio\\build\\native\\src\\claw\\claw_controller.o"
+    },
+    {
+        "command": "g++ -o .pio\\build\\native\\src\\communication\\websocket_server.o -c -std=c++17 -DPLATFORMIO=60200 -DUNIT_TEST -DNATIVE_BUILD -Isrc -I.pio\\libdeps\\native\\ArduinoJson\\src src\\communication\\websocket_server.cpp",
+        "directory": "C:\\Users\\Micha\\Documents\\Greifarm\\firmware",
+        "file": "src\\communication\\websocket_server.cpp",
+        "output": ".pio\\build\\native\\src\\communication\\websocket_server.o"
+    },
+    {
+        "command": "g++ -o .pio\\build\\native\\src\\config\\config_manager.o -c -std=c++17 -DPLATFORMIO=60200 -DUNIT_TEST -DNATIVE_BUILD -Isrc -I.pio\\libdeps\\native\\ArduinoJson\\src src\\config\\config_manager.cpp",
+        "directory": "C:\\Users\\Micha\\Documents\\Greifarm\\firmware",
+        "file": "src\\config\\config_manager.cpp",
+        "output": ".pio\\build\\native\\src\\config\\config_manager.o"
+    },
+    {
+        "command": "g++ -o .pio\\build\\native\\src\\game\\game_state_machine.o -c -std=c++17 -DPLATFORMIO=60200 -DUNIT_TEST -DNATIVE_BUILD -Isrc -I.pio\\libdeps\\native\\ArduinoJson\\src src\\game\\game_state_machine.cpp",
+        "directory": "C:\\Users\\Micha\\Documents\\Greifarm\\firmware",
+        "file": "src\\game\\game_state_machine.cpp",
+        "output": ".pio\\build\\native\\src\\game\\game_state_machine.o"
+    },
+    {
+        "command": "g++ -o .pio\\build\\native\\src\\joystick\\joystick_reader.o -c -std=c++17 -DPLATFORMIO=60200 -DUNIT_TEST -DNATIVE_BUILD -Isrc -I.pio\\libdeps\\native\\ArduinoJson\\src src\\joystick\\joystick_reader.cpp",
+        "directory": "C:\\Users\\Micha\\Documents\\Greifarm\\firmware",
+        "file": "src\\joystick\\joystick_reader.cpp",
+        "output": ".pio\\build\\native\\src\\joystick\\joystick_reader.o"
+    },
+    {
+        "command": "g++ -o .pio\\build\\native\\src\\lighting\\led_controller.o -c -std=c++17 -DPLATFORMIO=60200 -DUNIT_TEST -DNATIVE_BUILD -Isrc -I.pio\\libdeps\\native\\ArduinoJson\\src src\\lighting\\led_controller.cpp",
+        "directory": "C:\\Users\\Micha\\Documents\\Greifarm\\firmware",
+        "file": "src\\lighting\\led_controller.cpp",
+        "output": ".pio\\build\\native\\src\\lighting\\led_controller.o"
+    },
+    {
+        "command": "g++ -o .pio\\build\\native\\src\\main.o -c -std=c++17 -DPLATFORMIO=60200 -DUNIT_TEST -DNATIVE_BUILD -Isrc -I.pio\\libdeps\\native\\ArduinoJson\\src src\\main.cpp",
+        "directory": "C:\\Users\\Micha\\Documents\\Greifarm\\firmware",
+        "file": "src\\main.cpp",
+        "output": ".pio\\build\\native\\src\\main.o"
+    },
+    {
+        "command": "g++ -o .pio\\build\\native\\src\\motion\\corexy_kinematics.o -c -std=c++17 -DPLATFORMIO=60200 -DUNIT_TEST -DNATIVE_BUILD -Isrc -I.pio\\libdeps\\native\\ArduinoJson\\src src\\motion\\corexy_kinematics.cpp",
+        "directory": "C:\\Users\\Micha\\Documents\\Greifarm\\firmware",
+        "file": "src\\motion\\corexy_kinematics.cpp",
+        "output": ".pio\\build\\native\\src\\motion\\corexy_kinematics.o"
+    },
+    {
+        "command": "g++ -o .pio\\build\\native\\src\\motion\\homing.o -c -std=c++17 -DPLATFORMIO=60200 -DUNIT_TEST -DNATIVE_BUILD -Isrc -I.pio\\libdeps\\native\\ArduinoJson\\src src\\motion\\homing.cpp",
+        "directory": "C:\\Users\\Micha\\Documents\\Greifarm\\firmware",
+        "file": "src\\motion\\homing.cpp",
+        "output": ".pio\\build\\native\\src\\motion\\homing.o"
+    },
+    {
+        "command": "g++ -o .pio\\build\\native\\src\\motion\\motion_planner.o -c -std=c++17 -DPLATFORMIO=60200 -DUNIT_TEST -DNATIVE_BUILD -Isrc -I.pio\\libdeps\\native\\ArduinoJson\\src src\\motion\\motion_planner.cpp",
+        "directory": "C:\\Users\\Micha\\Documents\\Greifarm\\firmware",
+        "file": "src\\motion\\motion_planner.cpp",
+        "output": ".pio\\build\\native\\src\\motion\\motion_planner.o"
+    },
+    {
+        "command": "g++ -o .pio\\build\\native\\src\\motion\\stepper_controller.o -c -std=c++17 -DPLATFORMIO=60200 -DUNIT_TEST -DNATIVE_BUILD -Isrc -I.pio\\libdeps\\native\\ArduinoJson\\src src\\motion\\stepper_controller.cpp",
+        "directory": "C:\\Users\\Micha\\Documents\\Greifarm\\firmware",
+        "file": "src\\motion\\stepper_controller.cpp",
+        "output": ".pio\\build\\native\\src\\motion\\stepper_controller.o"
+    },
+    {
+        "command": "g++ -o .pio\\build\\native\\src\\safety\\safety_controller.o -c -std=c++17 -DPLATFORMIO=60200 -DUNIT_TEST -DNATIVE_BUILD -Isrc -I.pio\\libdeps\\native\\ArduinoJson\\src src\\safety\\safety_controller.cpp",
+        "directory": "C:\\Users\\Micha\\Documents\\Greifarm\\firmware",
+        "file": "src\\safety\\safety_controller.cpp",
+        "output": ".pio\\build\\native\\src\\safety\\safety_controller.o"
+    },
+    {
+        "command": "g++ -o .pio\\build\\native\\src\\sensors\\coin_acceptor.o -c -std=c++17 -DPLATFORMIO=60200 -DUNIT_TEST -DNATIVE_BUILD -Isrc -I.pio\\libdeps\\native\\ArduinoJson\\src src\\sensors\\coin_acceptor.cpp",
+        "directory": "C:\\Users\\Micha\\Documents\\Greifarm\\firmware",
+        "file": "src\\sensors\\coin_acceptor.cpp",
+        "output": ".pio\\build\\native\\src\\sensors\\coin_acceptor.o"
+    },
+    {
+        "command": "g++ -o .pio\\build\\native\\src\\sensors\\limit_switch.o -c -std=c++17 -DPLATFORMIO=60200 -DUNIT_TEST -DNATIVE_BUILD -Isrc -I.pio\\libdeps\\native\\ArduinoJson\\src src\\sensors\\limit_switch.cpp",
+        "directory": "C:\\Users\\Micha\\Documents\\Greifarm\\firmware",
+        "file": "src\\sensors\\limit_switch.cpp",
+        "output": ".pio\\build\\native\\src\\sensors\\limit_switch.o"
+    },
+    {
+        "command": "g++ -o .pio\\build\\native\\src\\sensors\\prize_sensor.o -c -std=c++17 -DPLATFORMIO=60200 -DUNIT_TEST -DNATIVE_BUILD -Isrc -I.pio\\libdeps\\native\\ArduinoJson\\src src\\sensors\\prize_sensor.cpp",
+        "directory": "C:\\Users\\Micha\\Documents\\Greifarm\\firmware",
+        "file": "src\\sensors\\prize_sensor.cpp",
+        "output": ".pio\\build\\native\\src\\sensors\\prize_sensor.o"
+    },
+    {
+        "command": "g++ -o .pio\\build\\native\\src\\sensors\\sensor_manager.o -c -std=c++17 -DPLATFORMIO=60200 -DUNIT_TEST -DNATIVE_BUILD -Isrc -I.pio\\libdeps\\native\\ArduinoJson\\src src\\sensors\\sensor_manager.cpp",
+        "directory": "C:\\Users\\Micha\\Documents\\Greifarm\\firmware",
+        "file": "src\\sensors\\sensor_manager.cpp",
+        "output": ".pio\\build\\native\\src\\sensors\\sensor_manager.o"
+    },
+    {
+        "command": "g++ -o .pio\\build\\native\\src\\utils\\logger.o -c -std=c++17 -DPLATFORMIO=60200 -DUNIT_TEST -DNATIVE_BUILD -Isrc -I.pio\\libdeps\\native\\ArduinoJson\\src src\\utils\\logger.cpp",
+        "directory": "C:\\Users\\Micha\\Documents\\Greifarm\\firmware",
+        "file": "src\\utils\\logger.cpp",
+        "output": ".pio\\build\\native\\src\\utils\\logger.o"
+    }
+]

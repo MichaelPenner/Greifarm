@@ -69,3 +69,18 @@ The joystick has 3 potentiometers (X, Y, Z-twist) and a button.
 | Receiver GND | GND | GND |
 | Transmitter VCC| - | 5V |
 | Transmitter GND| - | GND |
+
+## 6. Coin Acceptor (PY-800VI)
+
+The coin acceptor typically has a 4 or 5-pin connector. **Warning: Do NOT connect the 12V supply to any ESP32 pin!**
+
+| Coin Acceptor Pin | Label (Typical) | ESP32 GPIO / Power | Notes |
+| :--- | :--- | :--- | :--- |
+| **+12V (Red)** | `DC12V` / `+12V` | 12V PSU directly | Power for the acceptor mechanism. |
+| **GND (Black)** | `GND` | GND | Must share ground with ESP32. |
+| **COIN Signal (White)** | `COIN` / `NO` | GPIO 32 | Open-collector pulse output. Connect to `SpnEn` header pin (GPIO 32) on CNC shield. |
+| **NC Signal** | `NC` | Not Connected | Do not use. |
+| **Counter (Grey)** | 计钞 (Chinese) | Not Connected | Drives an analog coin counter. Ignore. |
+
+> **Note on the "Chinese Symbols" Pins**: The two pins usually labeled with Chinese characters are for an external electromechanical coin counter (+ and -). You can safely leave these disconnected.
+> **Note on NO vs NC**: Set the switch on the side of the coin acceptor to **NO** (Normally Open). The ESP32 uses an internal pull-up resistor. When a coin is inserted, the acceptor will briefly pull GPIO 32 to GND.

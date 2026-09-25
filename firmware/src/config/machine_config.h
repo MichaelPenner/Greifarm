@@ -80,8 +80,8 @@
 #define DEFAULT_CLAW_MOVE_SPEED_MS  300     // Time for servo to reach position
 
 // Servo PWM
-#define SERVO_MIN_PULSE_US          544     // 0° pulse width
-#define SERVO_MAX_PULSE_US          2400    // 180° pulse width
+#define SERVO_MIN_PULSE_US          1000     // 0° pulse width
+#define SERVO_MAX_PULSE_US          1800    // 180° pulse width
 #define SERVO_PWM_FREQ_HZ           50      // Standard servo frequency
 
 // =============================================================
@@ -153,7 +153,7 @@
 // =============================================================
 
 #define WEBSOCKET_PORT              81      // ESP32 WebSocket server port
-#define TELEMETRY_INTERVAL_MS       100     // Send telemetry every 100ms (10 Hz)
+#define TELEMETRY_INTERVAL_MS       200     // Send telemetry every 200ms (5 Hz)
 #define HEARTBEAT_INTERVAL_MS       2000    // Heartbeat ping interval
 #define HEARTBEAT_TIMEOUT_MS        5000    // Disconnect if no pong received
 #define MAX_WEBSOCKET_CLIENTS       3       // Max simultaneous WebSocket connections
@@ -164,12 +164,12 @@
 
 // Station mode (connect to existing network)
 #define DEFAULT_WIFI_MODE           1       // 0 = AP, 1 = STA
-#define DEFAULT_WIFI_SSID           ""      // Set via config or NVS
-#define DEFAULT_WIFI_PASSWORD       ""      // Set via config or NVS
+#define DEFAULT_WIFI_SSID           "Penners WIFI"      // Set via config or NVS
+#define DEFAULT_WIFI_PASSWORD       "28011997penner"    // Set via config or NVS
 
 // Access Point mode (fallback)
 #define DEFAULT_AP_SSID             "ClawMachine"
-#define DEFAULT_AP_PASSWORD         "claw1234"
+#define DEFAULT_AP_PASSWORD         "clawmachine"
 
 // Hostname
 #define DEFAULT_HOSTNAME            "clawmachine"
@@ -178,7 +178,7 @@
 // WS2812B Lighting
 // =============================================================
 
-#define DEFAULT_LED_COUNT           120     // Total LEDs in strip
+#define DEFAULT_LED_COUNT           24     // Total LEDs in strip
 #define DEFAULT_LED_BRIGHTNESS      128     // 0–255 (50% default to save power)
 #define DEFAULT_LED_MAX_POWER_MW    10000   // Max power budget in milliwatts
 #define LED_COLOR_ORDER             GRB     // WS2812B standard

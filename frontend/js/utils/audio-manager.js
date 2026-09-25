@@ -19,6 +19,7 @@ export class AudioManager {
             'loss':           'loss.mp3',
             'error':          'error.mp3',
             'button_click':   'click.mp3',
+            'coin_insert':    'coin_insert.wav',
         };
     }
 

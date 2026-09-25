@@ -72,6 +72,7 @@ private:
 
     // Motor idle timer
     unsigned long _lastMotionTime;
+    bool _idleHandled;
 
     void _triggerEStop(ErrorCode reason);
     void _checkLimitSwitches();

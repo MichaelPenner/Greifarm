@@ -7,7 +7,7 @@ SafetyController::SafetyController(MotionPlanner& motion, SensorManager& sensors
     : _motion(motion), _sensors(sensors), _claw(claw),
       _safetyState(SafetyState::OK), _lastError(ErrorCode::NONE),
       _lastHeartbeat(0), _commAlive(false),
-      _moveWatchdogActive(false), _lastMotionTime(0) {}
+      _moveWatchdogActive(false), _lastMotionTime(0), _idleHandled(false) {}
 
 void SafetyController::begin() {
     _lastHeartbeat = millis();
@@ -108,17 +108,22 @@ void SafetyController::_checkMotorIdle() {
     unsigned long idle = millis() - _lastMotionTime;
 
     if (idle > MOTOR_IDLE_TIMEOUT_MS && _motion.steppers().areMotorsEnabled()) {
-        if (!cfg.z_always_energized) {
-            LOG_I(TAG, "Motor idle timeout — disabling motors");
-            _motion.steppers().disableMotors();
-        } else {
-            // Only disable XY motors, keep Z energized
-            // Note: CNC Shield has a shared enable pin, so we can't
-            // selectively disable. In a production build, this would
-            // require individual enable wiring.
-            // For now, keep all motors energized if Z needs to stay on.
-            LOG_D(TAG, "Motors idle but Z-hold enabled — keeping energized");
+        if (!_idleHandled) {
+            if (!cfg.z_always_energized) {
+                LOG_I(TAG, "Motor idle timeout — disabling motors");
+                _motion.steppers().disableMotors();
+            } else {
+                // Only disable XY motors, keep Z energized
+                // Note: CNC Shield has a shared enable pin, so we can't
+                // selectively disable. In a production build, this would
+                // require individual enable wiring.
+                // For now, keep all motors energized if Z needs to stay on.
+                LOG_D(TAG, "Motors idle but Z-hold enabled — keeping energized");
+            }
+            _idleHandled = true;
         }
+    } else {
+        _idleHandled = false;
     }
 }
 

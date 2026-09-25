@@ -9,7 +9,7 @@
 #include <Arduino.h>
 #include <FastLED.h>
 #include "../config/pin_config.h"
-#include "../config/machine_config.h"
+#include "../config/config_manager.h"
 #include "../utils/timer.h"
 
 // Maximum LED count (compile-time buffer)

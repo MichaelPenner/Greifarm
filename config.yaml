@@ -1,0 +1,18 @@
+name: "Claw Machine Server"
+description: "Permanent FastAPI backend and Web UI for the DIY Claw Machine"
+version: "1.0.5"
+slug: "claw_machine"
+init: false
+arch:
+  - aarch64
+  - amd64
+  - armhf
+  - armv7
+ports:
+  8000/tcp: 8000
+map:
+  - config:rw
+options:
+  esp_host: "192.168.178.136"
+schema:
+  esp_host: str

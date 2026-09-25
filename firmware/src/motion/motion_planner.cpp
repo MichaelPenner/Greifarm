@@ -171,54 +171,63 @@ bool MotionPlanner::_validateAndMove(float x, float y) {
 }
 
 void MotionPlanner::_processJoystickMovement() {
-    // Only process joystick if axes are not already executing a planned move
-    if (_steppers.isMoving(StepperAxis::MOTOR_A) ||
-        _steppers.isMoving(StepperAxis::MOTOR_B) ||
-        _steppers.isMoving(StepperAxis::MOTOR_Z)) {
-        // Don't interrupt planned moves with joystick input
-        // unless the planned move is also a joystick move
-        return;
-    }
-
     unsigned long now = millis();
     if (now - _lastJoyUpdate < JOY_MOVE_INTERVAL_MS) return;
     _lastJoyUpdate = now;
 
-    // Only move if joystick has input
-    if (abs(_joySpeedX) < 0.01f && abs(_joySpeedY) < 0.01f && abs(_joySpeedZ) < 0.01f) {
+    const auto& cfg = machineConfig.settings();
+
+    bool hasInput = (abs(_joySpeedX) > 0.01f || abs(_joySpeedY) > 0.01f || abs(_joySpeedZ) > 0.01f);
+
+    if (!hasInput) {
+        if (_isJoystickMove) {
+            _steppers.stopAll();
+            _isJoystickMove = false;
+        }
         return;
     }
 
     if (_posState == PositionState::UNKNOWN) return;
 
-    const auto& cfg = machineConfig.settings();
-
-    // Calculate movement delta for this interval
-    float dt = JOY_MOVE_INTERVAL_MS / 1000.0f; // seconds
-
-    float dx = _joySpeedX * cfg.x_max_speed * dt;
-    float dy = _joySpeedY * cfg.y_max_speed * dt;
-    float dz = _joySpeedZ * cfg.z_max_speed * dt;
-
-    // Calculate new position
-    float newX = getX() + dx;
-    float newY = getY() + dy;
-    float newZ = getZ() + dz;
-
-    // Clamp to limits
-    newX = constrain(newX, 0.0f, cfg.x_max_mm);
-    newY = constrain(newY, 0.0f, cfg.y_max_mm);
-    newZ = constrain(newZ, 0.0f, cfg.z_max_mm);
-
-    // Execute XY move
-    if (abs(dx) > 0.001f || abs(dy) > 0.001f) {
-        _validateAndMove(newX, newY);
+    // Ignore if a non-joystick move is currently running
+    if (!_isJoystickMove && 
+        (_steppers.isMoving(StepperAxis::MOTOR_A) ||
+         _steppers.isMoving(StepperAxis::MOTOR_B) ||
+         _steppers.isMoving(StepperAxis::MOTOR_Z))) {
+        return;
     }
 
-    // Execute Z move
-    if (abs(dz) > 0.001f) {
-        int32_t targetZ = static_cast<int32_t>(newZ * cfg.z_steps_per_mm);
-        if (cfg.invert_motor_z) targetZ = -targetZ;
-        _steppers.moveTo(StepperAxis::MOTOR_Z, targetZ);
+    bool inputChanged = (_joySpeedX != _lastJoyX) || (_joySpeedY != _lastJoyY) || (_joySpeedZ != _lastJoyZ);
+    _lastJoyX = _joySpeedX;
+    _lastJoyY = _joySpeedY;
+    _lastJoyZ = _joySpeedZ;
+
+    // If input changed, we must re-plan the move
+    if (inputChanged) {
+        _isJoystickMove = false;
+    }
+
+    // Start a new joystick move only if we aren't already running one
+    // This prevents constant re-planning and stuttering
+    if (!_isJoystickMove) {
+        float targetX = getX();
+        float targetY = getY();
+        float targetZ = getZ();
+
+        if (abs(_joySpeedX) > 0.01f) targetX = (_joySpeedX > 0) ? cfg.x_max_mm : 0.0f;
+        if (abs(_joySpeedY) > 0.01f) targetY = (_joySpeedY > 0) ? cfg.y_max_mm : 0.0f;
+        if (abs(_joySpeedZ) > 0.01f) targetZ = (_joySpeedZ > 0) ? cfg.z_max_mm : 0.0f;
+
+        if (abs(_joySpeedX) > 0.01f || abs(_joySpeedY) > 0.01f) {
+            _validateAndMove(targetX, targetY);
+        }
+        
+        if (abs(_joySpeedZ) > 0.01f) {
+            int32_t targetZSteps = static_cast<int32_t>(targetZ * cfg.z_steps_per_mm);
+            if (cfg.invert_motor_z) targetZSteps = -targetZSteps;
+            _steppers.moveTo(StepperAxis::MOTOR_Z, targetZSteps);
+        }
+
+        _isJoystickMove = true;
     }
 }

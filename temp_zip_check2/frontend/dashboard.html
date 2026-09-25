@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>⚙️ Claw Machine — Dashboard</title>
+    <meta name="description" content="Claw Machine Control Dashboard — Admin & Diagnostics">
+    <link rel="stylesheet" href="css/design-system.css">
+    <style>
+        body {
+            background: var(--clr-bg);
+            min-height: 100vh;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            background: var(--clr-surface);
+            border-right: 1px solid var(--clr-border);
+            padding: var(--sp-6);
+            display: flex;
+            flex-direction: column;
+            gap: var(--sp-6);
+        }
+
+        .sidebar-brand {
+            font-family: var(--font-display);
+            font-size: var(--fs-xl);
+            font-weight: 700;
+            color: var(--clr-primary);
+            margin-bottom: var(--sp-4);
+        }
+
+        .sidebar-nav {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: var(--sp-1);
+        }
+
+        .sidebar-link {
+            display: flex;
+            align-items: center;
+            gap: var(--sp-3);
+            padding: var(--sp-3) var(--sp-4);
+            color: var(--clr-text-light);
+            text-decoration: none;
+            border-radius: var(--radius-md);
+            font-weight: var(--fw-medium);
+            transition: all var(--duration-fast) var(--ease-out);
+            cursor: pointer;
+        }
+
+        .sidebar-link:hover { background: var(--clr-primary-bg); color: var(--clr-primary); }
+        .sidebar-link.active { background: var(--clr-primary-bg); color: var(--clr-primary); font-weight: var(--fw-semibold); }
+
+        .sidebar-section {
+            font-size: var(--fs-xs);
+            color: var(--clr-text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-top: var(--sp-4);
+        }
+
+        /* Connection status in sidebar */
+        .sidebar-status {
+            margin-top: auto;
+            padding-top: var(--sp-4);
+            border-top: 1px solid var(--clr-border);
+        }
+
+        /* Main content area */
+        .main-content {
+            padding: var(--sp-6);
+            overflow-y: auto;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--sp-6);
+        }
+
+        .page-title {
+            font-family: var(--font-display);
+            font-size: var(--fs-2xl);
+            font-weight: var(--fw-bold);
+        }
+
+        /* Dashboard panels */
+        .panel { display: none; }
+        .panel.active { display: block; animation: fade-in 0.3s var(--ease-out); }
+
+        /* Stats grid */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: var(--sp-4);
+            margin-bottom: var(--sp-6);
+        }
+
+        .stat-card {
+            background: var(--clr-surface);
+            border-radius: var(--radius-lg);
+            padding: var(--sp-5);
+            box-shadow: var(--shadow-sm);
+            text-align: center;
+        }
+
+        .stat-card .stat-icon {
+            font-size: var(--fs-2xl);
+            margin-bottom: var(--sp-2);
+        }
+
+        .stat-card .stat-value {
+            font-size: var(--fs-2xl);
+        }
+
+        /* Position display */
+        .position-display {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--sp-4);
+        }
+
+        .pos-axis {
+            text-align: center;
+            padding: var(--sp-4);
+            background: var(--clr-surface-alt);
+            border-radius: var(--radius-md);
+        }
+
+        .pos-label {
+            font-size: var(--fs-sm);
+            color: var(--clr-text-muted);
+            text-transform: uppercase;
+        }
+
+        .pos-value {
+            font-family: var(--font-mono);
+            font-size: var(--fs-2xl);
+            font-weight: var(--fw-bold);
+            color: var(--clr-primary);
+        }
+
+        /* Control buttons grid */
+        .controls-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: var(--sp-3);
+        }
+
+        .controls-group {
+            margin-bottom: var(--sp-6);
+        }
+
+        .controls-group-title {
+            font-family: var(--font-display);
+            font-size: var(--fs-lg);
+            font-weight: var(--fw-semibold);
+            margin-bottom: var(--sp-3);
+            color: var(--clr-text);
+            display: flex;
+            align-items: center;
+            gap: var(--sp-2);
+        }
+
+        /* Sensor indicators grid */
+        .sensors-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: var(--sp-3);
+        }
+
+        .sensor-card {
+            display: flex;
+            align-items: center;
+            gap: var(--sp-3);
+            padding: var(--sp-3) var(--sp-4);
+            background: var(--clr-surface);
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .sensor-card .sensor-dot {
+            width: 14px;
+            height: 14px;
+        }
+
+        /* Jog buttons */
+        .jog-pad {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            grid-template-rows: 1fr 1fr 1fr;
+            gap: var(--sp-2);
+            max-width: 250px;
+        }
+
+        .jog-btn {
+            min-height: 60px;
+            font-size: var(--fs-xl);
+        }
+
+        .jog-btn.center {
+            background: var(--clr-surface-alt);
+            color: var(--clr-text-muted);
+            border: 2px solid var(--clr-border);
+        }
+
+        /* Config form */
+        .config-form {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: var(--sp-4);
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: var(--sp-1);
+        }
+
+        .form-label {
+            font-size: var(--fs-sm);
+            font-weight: var(--fw-medium);
+            color: var(--clr-text-light);
+        }
+
+        .form-input {
+            padding: var(--sp-3);
+            border: 2px solid var(--clr-border);
+            border-radius: var(--radius-md);
+            font-family: var(--font-mono);
+            font-size: var(--fs-base);
+            transition: border-color var(--duration-fast);
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--clr-primary);
+        }
+
+        /* Logs */
+        .log-container {
+            background: hsl(220, 20%, 15%);
+            color: hsl(140, 50%, 75%);
+            font-family: var(--font-mono);
+            font-size: var(--fs-sm);
+            padding: var(--sp-4);
+            border-radius: var(--radius-md);
+            max-height: 400px;
+            overflow-y: auto;
+            line-height: 1.8;
+        }
+
+        .log-line { padding: var(--sp-1) 0; border-bottom: 1px solid hsla(0,0%,100%,0.05); }
+        .log-time { color: hsl(200, 70%, 65%); }
+        .log-error { color: hsl(0, 70%, 65%); }
+        .log-warn { color: hsl(38, 80%, 65%); }
+        .log-info { color: hsl(140, 50%, 65%); }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+            .sidebar {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-brand">⚙️ Dashboard</div>
+
+            <div class="sidebar-section">Control</div>
+            <ul class="sidebar-nav">
+                <li><a class="sidebar-link active" data-panel="overview" onclick="showPanel('overview')">📊 Overview</a></li>
+                <li><a class="sidebar-link" data-panel="controls" onclick="showPanel('controls')">🎮 Controls</a></li>
+                <li><a class="sidebar-link" data-panel="sensors" onclick="showPanel('sensors')">📡 Sensors</a></li>
+            </ul>
+
+            <div class="sidebar-section">Settings</div>
+            <ul class="sidebar-nav">
+                <li><a class="sidebar-link" data-panel="config" onclick="showPanel('config')">⚙️ Configuration</a></li>
+                <li><a class="sidebar-link" data-panel="lighting" onclick="showPanel('lighting')">💡 Lighting</a></li>
+                <li><a class="sidebar-link" data-panel="calibration" onclick="showPanel('calibration')">🎯 Calibration</a></li>
+            </ul>
+
+            <div class="sidebar-section">System</div>
+            <ul class="sidebar-nav">
+                <li><a class="sidebar-link" data-panel="logs" onclick="showPanel('logs')">📋 Logs</a></li>
+                <li><a class="sidebar-link" href="index.html">🎪 Player View</a></li>
+            </ul>
+
+            <div class="sidebar-status">
+                <div class="sensor-indicator" id="sidebarStatus">
+                    <span class="sensor-dot unknown" id="sidebarDot"></span>
+                    <span id="sidebarStatusText">Disconnected</span>
+                </div>
+                <div style="margin-top: var(--sp-2); font-size: var(--fs-xs); color: var(--clr-text-muted);">
+                    State: <strong id="sidebarState">—</strong>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+
+            <!-- === OVERVIEW PANEL === -->
+            <div class="panel active" id="panel-overview">
+                <div class="page-header">
+                    <h1 class="page-title">Machine Overview</h1>
+                    <div id="overviewState"></div>
+                </div>
+
+                <div class="stats-row">
+                    <div class="stat-card">
+                        <div class="stat-icon">🎮</div>
+                        <div class="stat-value" id="statGames">0</div>
+                        <div class="stat-label">Games Played</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🏆</div>
+                        <div class="stat-value" id="statWins">0</div>
+                        <div class="stat-label">Wins</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">📈</div>
+                        <div class="stat-value" id="statRate">0%</div>
+                        <div class="stat-label">Win Rate</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">⏱️</div>
+                        <div class="stat-value" id="statUptime">0h</div>
+                        <div class="stat-label">Uptime</div>
+                    </div>
+                </div>
+
+                <div class="card" style="margin-bottom: var(--sp-4);">
+                    <div class="card-header">
+                        <span class="card-title">Position</span>
+                        <span class="card-subtitle" id="posHomed">Not Homed</span>
+                    </div>
+                    <div class="position-display">
+                        <div class="pos-axis"><div class="pos-label">X</div><div class="pos-value" id="posX">0.0</div></div>
+                        <div class="pos-axis"><div class="pos-label">Y</div><div class="pos-value" id="posY">0.0</div></div>
+                        <div class="pos-axis"><div class="pos-label">Z</div><div class="pos-value" id="posZ">0.0</div></div>
+                    </div>
+                </div>
+
+                <div class="grid-2" style="gap: var(--sp-4);">
+                    <div class="card">
+                        <div class="card-title">Claw</div>
+                        <div class="stat" style="margin-top: var(--sp-3);">
+                            <div class="stat-value" id="clawState">—</div>
+                            <div class="stat-label">Angle: <span id="clawAngle">0</span>°</div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-title">Joystick</div>
+                        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:var(--sp-2); margin-top:var(--sp-3); text-align:center;">
+                            <div><div class="stat-label">X</div><div class="stat-value" style="font-size:var(--fs-xl);" id="joyX">0.00</div></div>
+                            <div><div class="stat-label">Y</div><div class="stat-value" style="font-size:var(--fs-xl);" id="joyY">0.00</div></div>
+                            <div><div class="stat-label">Z</div><div class="stat-value" style="font-size:var(--fs-xl);" id="joyZ">0.00</div></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- === CONTROLS PANEL === -->
+            <div class="panel" id="panel-controls">
+                <div class="page-header">
+                    <h1 class="page-title">Machine Controls</h1>
+                </div>
+
+                <div class="controls-group">
+                    <div class="controls-group-title">🏠 Homing & Safety</div>
+                    <div class="controls-grid">
+                        <button class="btn btn-primary" onclick="sendCmd('home')">🏠 Home All</button>
+                        <button class="btn btn-warning" onclick="sendCmd('stop')">⏹ Stop</button>
+                        <button class="btn btn-danger btn-lg" onclick="sendCmd('estop')">🛑 E-STOP</button>
+                        <button class="btn btn-ghost" onclick="sendCmd('reset')">🔄 Reset</button>
+                    </div>
+                </div>
+
+                <div class="controls-group">
+                    <div class="controls-group-title">🎮 Movement (XY)</div>
+                    <div style="display:flex; gap:var(--sp-6); align-items:start;">
+                        <div class="jog-pad">
+                            <div></div>
+                            <button class="btn btn-ghost jog-btn" onpointerdown="sendMove(0, -1, 0)" onpointerup="sendMove(0,0,0)" onpointerleave="sendMove(0,0,0)">⬆️</button>
+                            <div></div>
+                            <button class="btn btn-ghost jog-btn" onpointerdown="sendMove(-1, 0, 0)" onpointerup="sendMove(0,0,0)" onpointerleave="sendMove(0,0,0)">⬅️</button>
+                            <button class="btn jog-btn center" onclick="sendCmd('stop')">⏹</button>
+                            <button class="btn btn-ghost jog-btn" onpointerdown="sendMove(1, 0, 0)" onpointerup="sendMove(0,0,0)" onpointerleave="sendMove(0,0,0)">➡️</button>
+                            <div></div>
+                            <button class="btn btn-ghost jog-btn" onpointerdown="sendMove(0, 1, 0)" onpointerup="sendMove(0,0,0)" onpointerleave="sendMove(0,0,0)">⬇️</button>
+                            <div></div>
+                        </div>
+                        <div style="display:flex;flex-direction:column;gap:var(--sp-2);">
+                            <button class="btn btn-ghost" onpointerdown="sendMove(0, 0, -1)" onpointerup="sendMove(0,0,0)" onpointerleave="sendMove(0,0,0)">⬆️ Z Up</button>
+                            <button class="btn btn-ghost" onpointerdown="sendMove(0, 0, 1)" onpointerup="sendMove(0,0,0)" onpointerleave="sendMove(0,0,0)">⬇️ Z Down</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="controls-group">
+                    <div class="controls-group-title">🦀 Claw</div>
+                    <div class="controls-grid">
+                        <button class="btn btn-success" onclick="sendCmd('claw_open')">Open Claw</button>
+                        <button class="btn btn-warning" onclick="sendCmd('claw_close')">Close Claw</button>
+                        <button class="btn btn-ghost" onclick="sendCmd('claw_partial')">Partial</button>
+                    </div>
+                </div>
+
+                <div class="controls-group">
+                    <div class="controls-group-title">⚡ Motors</div>
+                    <div class="controls-grid">
+                        <button class="btn btn-success" onclick="sendCmd('enable_motors')">Enable Motors</button>
+                        <button class="btn btn-ghost" onclick="sendCmd('disable_motors')">Disable Motors</button>
+                        <button class="btn btn-primary" onclick="sendCmd('maintenance', {enter:true})">Enter Maint.</button>
+                        <button class="btn btn-ghost" onclick="sendCmd('maintenance', {enter:false})">Exit Maint.</button>
+                    </div>
+                </div>
+
+                <div class="controls-group">
+                    <div class="controls-group-title">🎮 Game</div>
+                    <div class="controls-grid">
+                        <button class="btn btn-success btn-lg" onclick="sendCmd('game_start', {player:'Player'})">▶️ Start Game</button>
+                        <button class="btn btn-danger" onclick="sendCmd('game_stop')">⏹ Stop Game</button>
+                        <button class="btn btn-warning" onclick="sendCmd('game_grab')">🎯 Grab!</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- === SENSORS PANEL === -->
+            <div class="panel" id="panel-sensors">
+                <div class="page-header">
+                    <h1 class="page-title">Sensors & Diagnostics</h1>
+                </div>
+
+                <div class="sensors-grid" id="sensorGrid">
+                    <div class="sensor-card" id="sensor-xhome">
+                        <span class="sensor-dot unknown"></span>
+                        <span>X Home</span>
+                    </div>
+                    <div class="sensor-card" id="sensor-yhome">
+                        <span class="sensor-dot unknown"></span>
+                        <span>Y Home</span>
+                    </div>
+                    <div class="sensor-card" id="sensor-ztop">
+                        <span class="sensor-dot unknown"></span>
+                        <span>Z Top</span>
+                    </div>
+                    <div class="sensor-card" id="sensor-zbottom">
+                        <span class="sensor-dot unknown"></span>
+                        <span>Z Bottom</span>
+                    </div>
+                    <div class="sensor-card" id="sensor-estop">
+                        <span class="sensor-dot unknown"></span>
+                        <span>E-Stop</span>
+                    </div>
+                    <div class="sensor-card" id="sensor-prize">
+                        <span class="sensor-dot unknown"></span>
+                        <span>Prize Beam</span>
+                    </div>
+                </div>
+
+                <div class="card" style="margin-top: var(--sp-6);">
+                    <div class="card-title">Raw Sensor Bitmask</div>
+                    <div class="stat-value" style="font-family:var(--font-mono); margin-top:var(--sp-2);" id="sensorRaw">0b0000000</div>
+                </div>
+            </div>
+
+            <!-- === CONFIG PANEL === -->
+            <div class="panel" id="panel-config">
+                <div class="page-header">
+                    <h1 class="page-title">Configuration</h1>
+                    <div style="display:flex;gap:var(--sp-2);">
+                        <button class="btn btn-primary" onclick="saveConfig()">💾 Save to ESP</button>
+                        <button class="btn btn-danger" onclick="resetConfig()">Reset Defaults</button>
+                    </div>
+                </div>
+                <div class="card">
+                    <p style="color:var(--clr-text-muted);">Configuration is managed via WebSocket commands. Use the Controls panel to interact with the machine, or send config commands via the browser console.</p>
+                    <p style="margin-top:var(--sp-3); font-family:var(--font-mono); font-size:var(--fs-sm);">
+                        ws.sendCommand('get_config')<br>
+                        ws.sendCommand('set_config', { config: { ... } })
+                    </p>
+                </div>
+            </div>
+
+            <!-- === LIGHTING PANEL === -->
+            <div class="panel" id="panel-lighting">
+                <div class="page-header">
+                    <h1 class="page-title">💡 Lighting Control</h1>
+                </div>
+                <div class="controls-grid">
+                    <button class="btn btn-ghost" onclick="setScene('off')">⬛ Off</button>
+                    <button class="btn btn-primary" onclick="setScene('idle')">💤 Idle</button>
+                    <button class="btn btn-primary" onclick="setScene('ready')">✅ Ready</button>
+                    <button class="btn btn-success" onclick="setScene('playing')">🎮 Playing</button>
+                    <button class="btn btn-warning" onclick="setScene('win')">🏆 Win</button>
+                    <button class="btn btn-ghost" onclick="setScene('loss')">😔 Loss</button>
+                    <button class="btn btn-primary" onclick="setScene('rainbow')">🌈 Rainbow</button>
+                    <button class="btn btn-primary" onclick="setScene('breathing')">🫁 Breathing</button>
+                    <button class="btn btn-primary" onclick="setScene('chase')">🏃 Chase</button>
+                    <button class="btn btn-danger" onclick="setScene('emergency_stop')">🛑 E-Stop</button>
+                    <button class="btn btn-ghost" onclick="setScene('maintenance')">🔧 Maint.</button>
+                </div>
+                <div class="card" style="margin-top:var(--sp-6);">
+                    <div class="card-title">Brightness</div>
+                    <input type="range" min="0" max="255" value="128" id="brightnessSlider"
+                           oninput="setBrightness(this.value)"
+                           style="width:100%; margin-top:var(--sp-3);">
+                    <div style="text-align:center; margin-top:var(--sp-2); font-family:var(--font-mono);" id="brightnessValue">128</div>
+                </div>
+            </div>
+
+            <!-- === CALIBRATION PANEL === -->
+            <div class="panel" id="panel-calibration">
+                <div class="page-header">
+                    <h1 class="page-title">🎯 Calibration</h1>
+                </div>
+                <div class="controls-group">
+                    <div class="controls-group-title">Joystick</div>
+                    <div class="controls-grid">
+                        <button class="btn btn-primary" onclick="sendCmd('joy_cal_center')">Center</button>
+                        <button class="btn btn-success" onclick="sendCmd('joy_cal_range_start')">Start Range Cal</button>
+                        <button class="btn btn-warning" onclick="sendCmd('joy_cal_range_stop')">Stop Range Cal</button>
+                    </div>
+                </div>
+                <div class="controls-group">
+                    <div class="controls-group-title">Position</div>
+                    <div class="controls-grid">
+                        <button class="btn btn-ghost" onclick="sendCmd('set_position', {x:0, y:0, z:0})">Set Home (0,0,0)</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- === LOGS PANEL === -->
+            <div class="panel" id="panel-logs">
+                <div class="page-header">
+                    <h1 class="page-title">📋 System Logs</h1>
+                    <button class="btn btn-ghost" onclick="sendCmd('get_logs')">🔄 Refresh Logs</button>
+                </div>
+                <div class="log-container" id="logContainer">
+                    <div class="log-line log-info">Waiting for logs...</div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <script type="module">
+        import { WebSocketClient } from './js/websocket-client.js';
+        import { StateManager } from './js/state-manager.js';
+
+        const ws = new WebSocketClient();
+        const state = new StateManager();
+
+        // Make ws globally accessible for button onclick handlers
+        window.ws = ws;
+
+        // Panel navigation
+        window.showPanel = function(name) {
+            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
+            const panel = document.getElementById(`panel-${name}`);
+            if (panel) panel.classList.add('active');
+            const link = document.querySelector(`.sidebar-link[data-panel="${name}"]`);
+            if (link) link.classList.add('active');
+        };
+
+        // Command helpers
+        window.sendCmd = function(type, params = {}) {
+            ws.sendCommand(type, params);
+        };
+
+        window.sendMove = function(x, y, z) { ws.sendCommand('move', { x, y, z }); };
+        window.sendJog = function(dx, dy, dz) {
+            ws.sendCommand('move_rel', { dx, dy, dz });
+        };
+
+        window.setScene = function(scene) {
+            ws.sendCommand('led_scene', { scene });
+        };
+
+        window.setBrightness = function(val) {
+            document.getElementById('brightnessValue').textContent = val;
+            ws.sendCommand('led_bright', { brightness: parseInt(val) });
+        };
+
+        window.saveConfig = function() {
+            ws.sendCommand('save_config');
+        };
+
+        window.resetConfig = function() {
+            if (confirm('Reset all settings to factory defaults?')) {
+                ws.sendCommand('reset_config');
+            }
+        };
+
+        // Claw state strings
+        const clawStates = ['UNKNOWN', 'OPEN', 'CLOSED', 'PARTIAL', 'MOVING'];
+
+        // Telemetry handler
+        ws.on('telemetry', (data) => {
+            state.updateFromTelemetry(data);
+
+            // Update overview stats
+            document.getElementById('statGames').textContent = data.games_played || 0;
+            document.getElementById('statWins').textContent = data.games_won || 0;
+            document.getElementById('statRate').textContent = state.winRate + '%';
+            document.getElementById('statUptime').textContent = state.uptimeFormatted;
+
+            // Position
+            document.getElementById('posX').textContent = (data.x || 0).toFixed(1);
+            document.getElementById('posY').textContent = (data.y || 0).toFixed(1);
+            document.getElementById('posZ').textContent = (data.z || 0).toFixed(1);
+            document.getElementById('posHomed').textContent = data.homed ? '✅ Homed' : '⚠️ Not Homed';
+
+            // Claw
+            document.getElementById('clawState').textContent = clawStates[data.claw] || 'UNKNOWN';
+            document.getElementById('clawAngle').textContent = data.claw_angle || 0;
+
+            // Joystick
+            document.getElementById('joyX').textContent = (data.joy_x || 0).toFixed(2);
+            document.getElementById('joyY').textContent = (data.joy_y || 0).toFixed(2);
+            document.getElementById('joyZ').textContent = (data.joy_z || 0).toFixed(2);
+
+            // Sensors
+            const sensors = data.sensors || 0;
+            document.getElementById('sensorRaw').textContent = '0b' + sensors.toString(2).padStart(7, '0');
+            updateSensorDot('sensor-xhome', sensors & 1);
+            updateSensorDot('sensor-yhome', sensors & 2);
+            updateSensorDot('sensor-ztop', sensors & 4);
+            updateSensorDot('sensor-zbottom', sensors & 8);
+            updateSensorDot('sensor-estop', sensors & 16);
+            updateSensorDot('sensor-prize', sensors & 32);
+
+            // Sidebar
+            document.getElementById('sidebarState').textContent = data.state || '—';
+        });
+
+        let backendConnected = false;
+        let espConnected = false;
+
+        function updateSidebarConnection() {
+            const dot = document.getElementById('sidebarDot');
+            const text = document.getElementById('sidebarStatusText');
+            
+            if (!backendConnected) {
+                dot.className = 'sensor-dot unknown';
+                text.textContent = 'Server Offline';
+            } else if (!espConnected) {
+                dot.className = 'sensor-dot unknown';
+                text.textContent = 'ESP Disconnected';
+            } else {
+                dot.className = 'sensor-dot ok';
+                text.textContent = 'Connected';
+            }
+        }
+
+        ws.on('connection', ({ connected }) => {
+            backendConnected = connected;
+            if (!connected) espConnected = false;
+            updateSidebarConnection();
+        });
+
+        ws.on('heartbeat_ack', (data) => {
+            if (espConnected !== data.esp_connected) {
+                espConnected = data.esp_connected;
+                updateSidebarConnection();
+            }
+        });
+
+        // Log handler
+        ws.on('log', (data) => {
+            const container = document.getElementById('logContainer');
+            container.innerHTML = '';
+            (data.entries || []).forEach(entry => {
+                const levelClass = entry.l >= 4 ? 'log-error' : entry.l >= 3 ? 'log-warn' : 'log-info';
+                const div = document.createElement('div');
+                div.className = `log-line ${levelClass}`;
+                div.innerHTML = `<span class="log-time">[${entry.t}]</span> <strong>[${entry.m}]</strong> ${entry.msg}`;
+                container.appendChild(div);
+            });
+            container.scrollTop = container.scrollHeight;
+        });
+
+        function updateSensorDot(id, triggered) {
+            const card = document.getElementById(id);
+            if (!card) return;
+            const dot = card.querySelector('.sensor-dot');
+            dot.className = `sensor-dot ${triggered ? 'triggered' : 'ok'}`;
+        }
+
+        // Connect
+        ws.connect();
+    </script>
+</body>
+</html>
+

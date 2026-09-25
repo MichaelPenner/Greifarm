@@ -31,6 +31,7 @@ Then open a browser to:
 
 Place your MP3 files in the `frontend/sounds/` directory. The expected files are:
 - `game_start.mp3`
+- `coin_insert.wav`
 - `countdown.mp3`
 - `claw_close.mp3`
 - `win.mp3`

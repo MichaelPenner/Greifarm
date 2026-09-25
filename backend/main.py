@@ -42,7 +42,7 @@ async def broadcast_to_browsers(data: dict):
             await ws.send_text(message)
         except Exception:
             disconnected.add(ws)
-    browser_clients -= disconnected
+    browser_clients.difference_update(disconnected)
 
 
 @asynccontextmanager

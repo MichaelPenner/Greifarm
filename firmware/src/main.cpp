@@ -4,6 +4,7 @@
 
 #include <Arduino.h>
 #include <WiFi.h>
+#include <ArduinoOTA.h>
 
 #include "config/machine_config.h"
 #include "config/pin_config.h"
@@ -167,6 +168,10 @@ void setup() {
     // 7. Start timers
     joystickTimer.start();
 
+    // 8. Start OTA
+    ArduinoOTA.setHostname(DEFAULT_HOSTNAME);
+    ArduinoOTA.begin();
+
     LOG_I("MAIN", "Setup complete — entering main loop");
 }
 
@@ -233,4 +238,7 @@ void loop() {
     if (sensors.isPrizeDetected() && wsServer) {
         wsServer->sendPrizeDetected();
     }
+
+    // 10. Handle OTA updates
+    ArduinoOTA.handle();
 }

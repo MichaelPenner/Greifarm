@@ -398,18 +398,18 @@
                     <div style="display:flex; gap:var(--sp-6); align-items:start;">
                         <div class="jog-pad">
                             <div></div>
-                            <button class="btn btn-ghost jog-btn" onclick="sendJog(0, -10, 0)">⬆️</button>
+                            <button class="btn btn-ghost jog-btn" onpointerdown="sendMove(0, -1, 0)" onpointerup="sendMove(0,0,0)" onpointerleave="sendMove(0,0,0)">⬆️</button>
                             <div></div>
-                            <button class="btn btn-ghost jog-btn" onclick="sendJog(-10, 0, 0)">⬅️</button>
+                            <button class="btn btn-ghost jog-btn" onpointerdown="sendMove(-1, 0, 0)" onpointerup="sendMove(0,0,0)" onpointerleave="sendMove(0,0,0)">⬅️</button>
                             <button class="btn jog-btn center" onclick="sendCmd('stop')">⏹</button>
-                            <button class="btn btn-ghost jog-btn" onclick="sendJog(10, 0, 0)">➡️</button>
+                            <button class="btn btn-ghost jog-btn" onpointerdown="sendMove(1, 0, 0)" onpointerup="sendMove(0,0,0)" onpointerleave="sendMove(0,0,0)">➡️</button>
                             <div></div>
-                            <button class="btn btn-ghost jog-btn" onclick="sendJog(0, 10, 0)">⬇️</button>
+                            <button class="btn btn-ghost jog-btn" onpointerdown="sendMove(0, 1, 0)" onpointerup="sendMove(0,0,0)" onpointerleave="sendMove(0,0,0)">⬇️</button>
                             <div></div>
                         </div>
                         <div style="display:flex;flex-direction:column;gap:var(--sp-2);">
-                            <button class="btn btn-ghost" onclick="sendJog(0, 0, -10)">⬆️ Z Up</button>
-                            <button class="btn btn-ghost" onclick="sendJog(0, 0, 10)">⬇️ Z Down</button>
+                            <button class="btn btn-ghost" onpointerdown="sendMove(0, 0, -1)" onpointerup="sendMove(0,0,0)" onpointerleave="sendMove(0,0,0)">⬆️ Z Up</button>
+                            <button class="btn btn-ghost" onpointerdown="sendMove(0, 0, 1)" onpointerup="sendMove(0,0,0)" onpointerleave="sendMove(0,0,0)">⬇️ Z Down</button>
                         </div>
                     </div>
                 </div>
@@ -587,6 +587,7 @@
             ws.sendCommand(type, params);
         };
 
+        window.sendMove = function(x, y, z) { ws.sendCommand('move', { x, y, z }); };
         window.sendJog = function(dx, dy, dz) {
             ws.sendCommand('move_rel', { dx, dy, dz });
         };
@@ -652,15 +653,35 @@
             document.getElementById('sidebarState').textContent = data.state || '—';
         });
 
-        ws.on('connection', ({ connected }) => {
+        let backendConnected = false;
+        let espConnected = false;
+
+        function updateSidebarConnection() {
             const dot = document.getElementById('sidebarDot');
             const text = document.getElementById('sidebarStatusText');
-            if (connected) {
+            
+            if (!backendConnected) {
+                dot.className = 'sensor-dot unknown';
+                text.textContent = 'Server Offline';
+            } else if (!espConnected) {
+                dot.className = 'sensor-dot unknown';
+                text.textContent = 'ESP Disconnected';
+            } else {
                 dot.className = 'sensor-dot ok';
                 text.textContent = 'Connected';
-            } else {
-                dot.className = 'sensor-dot unknown';
-                text.textContent = 'Disconnected';
+            }
+        }
+
+        ws.on('connection', ({ connected }) => {
+            backendConnected = connected;
+            if (!connected) espConnected = false;
+            updateSidebarConnection();
+        });
+
+        ws.on('heartbeat_ack', (data) => {
+            if (espConnected !== data.esp_connected) {
+                espConnected = data.esp_connected;
+                updateSidebarConnection();
             }
         });
 
@@ -690,3 +711,4 @@
     </script>
 </body>
 </html>
+

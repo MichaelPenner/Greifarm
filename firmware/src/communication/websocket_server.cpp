@@ -39,6 +39,7 @@ void WebSocketServer::_onWsEvent(AsyncWebSocket* server, AsyncWebSocketClient* c
         case WS_EVT_CONNECT:
             LOG_I(TAG, "Client connected: #%u from %s",
                   client->id(), client->remoteIP().toString().c_str());
+            client->setCloseClientOnQueueFull(false);
             break;
 
         case WS_EVT_DISCONNECT:
@@ -342,6 +343,10 @@ void WebSocketServer::_handleCommand(AsyncWebSocketClient* client, JsonDocument&
 }
 
 void WebSocketServer::sendTelemetry() {
+    if (!_ws.availableForWriteAll()) {
+        return; // Skip non-critical telemetry to avoid queue starvation (prevents ping timeouts)
+    }
+
     JsonDocument doc;
     doc["type"] = Evt::TELEMETRY;
     doc["state"] = _game.getStateString();

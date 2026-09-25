@@ -7,7 +7,8 @@ SensorManager::SensorManager()
       _yHome(PIN_LIMIT_Y_HOME, SWITCH_ACTIVE_LOW),
       _zTop(PIN_LIMIT_Z_TOP, SWITCH_ACTIVE_LOW),
       _zBottom(PIN_LIMIT_Z_BOTTOM, SWITCH_ACTIVE_LOW),
-      _estop(PIN_ESTOP, ESTOP_ACTIVE_LOW) {}
+      _estop(PIN_ESTOP, ESTOP_ACTIVE_LOW),
+      _coinAcceptor(PIN_COIN_ACCEPTOR) {}
 
 void SensorManager::begin() {
     _xHome.begin();
@@ -16,6 +17,7 @@ void SensorManager::begin() {
     _zBottom.begin();
     _estop.begin();
     _prize.begin();
+    _coinAcceptor.begin();
 
     LOG_I(TAG, "All sensors initialized");
     LOG_I(TAG, "  X-Home: pin %d", _xHome.getPin());

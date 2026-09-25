@@ -75,14 +75,18 @@ private:
     PositionState _posState;
 
     // Joystick continuous movement
-    float _joySpeedX;
-    float _joySpeedY;
-    float _joySpeedZ;
-    unsigned long _lastJoyUpdate;
+    float _joySpeedX = 0.0f;
+    float _joySpeedY = 0.0f;
+    float _joySpeedZ = 0.0f;
+    float _lastJoyX = 0.0f;
+    float _lastJoyY = 0.0f;
+    float _lastJoyZ = 0.0f;
+    unsigned long _lastJoyUpdate = 0;
     static constexpr unsigned long JOY_MOVE_INTERVAL_MS = 50; // 20Hz jog updates
 
     bool _validateAndMove(float x, float y);
     void _processJoystickMovement();
+    bool _isJoystickMove = false;
 };
 
 #endif // MOTION_PLANNER_H

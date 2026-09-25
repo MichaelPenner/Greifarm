@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     debug: bool = False
 
     # ESP32 connection
-    esp_host: str = "clawmachine.local"
+    esp_host: str = "192.168.178.136"
     esp_ws_port: int = 81
     esp_ws_path: str = "/ws"
     esp_reconnect_interval: float = 3.0

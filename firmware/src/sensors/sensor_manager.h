@@ -8,6 +8,7 @@
 
 #include "limit_switch.h"
 #include "prize_sensor.h"
+#include "coin_acceptor.h"
 #include "../config/pin_config.h"
 #include "../utils/logger.h"
 
@@ -32,6 +33,9 @@ public:
     PrizeSensor& prizeSensor() { return _prize; }
     bool isPrizeDetected() const { return _prize.prizeDetected(); }
 
+    // Coin Acceptor
+    CoinAcceptor& coinAcceptor() { return _coinAcceptor; }
+
     // Get all sensor states as a bitmask for telemetry
     uint16_t getSensorBitmask() const;
 
@@ -49,6 +53,7 @@ private:
     LimitSwitch _zBottom;
     LimitSwitch _estop;
     PrizeSensor _prize;
+    CoinAcceptor _coinAcceptor;
 };
 
 #endif // SENSOR_MANAGER_H

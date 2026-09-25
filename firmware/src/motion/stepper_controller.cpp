@@ -46,12 +46,14 @@ void StepperController::_initAxis(StepperAxis axis, uint8_t stepPin, uint8_t dir
 void StepperController::setMaxSpeed(StepperAxis axis, float stepsPerSec) {
     int idx = static_cast<int>(axis);
     _axes[idx].maxSpeed = stepsPerSec;
+    _axes[idx].configuredMaxSpeed = stepsPerSec;
     _axes[idx].minInterval = 1000000.0f / stepsPerSec; // µs per step at max speed
 }
 
 void StepperController::setAcceleration(StepperAxis axis, float stepsPerSecSq) {
     int idx = static_cast<int>(axis);
     _axes[idx].acceleration = stepsPerSecSq;
+    _axes[idx].configuredAcceleration = stepsPerSecSq;
 }
 
 void StepperController::enableMotors() {
@@ -68,6 +70,9 @@ void StepperController::moveTo(StepperAxis axis, int32_t targetSteps) {
     int idx = static_cast<int>(axis);
     StepperState& s = _axes[idx];
 
+    s.maxSpeed = s.configuredMaxSpeed;
+    s.acceleration = s.configuredAcceleration;
+    s.minInterval = 1000000.0f / s.maxSpeed;
     s.targetSteps = targetSteps;
     _planMove(s);
 }
@@ -78,6 +83,15 @@ void StepperController::moveRelative(StepperAxis axis, int32_t deltaSteps) {
 }
 
 void StepperController::moveSynchronized(int32_t targetA, int32_t targetB) {
+    // Restore base speeds
+    _axes[0].maxSpeed = _axes[0].configuredMaxSpeed;
+    _axes[0].acceleration = _axes[0].configuredAcceleration;
+    _axes[0].minInterval = 1000000.0f / _axes[0].maxSpeed;
+
+    _axes[1].maxSpeed = _axes[1].configuredMaxSpeed;
+    _axes[1].acceleration = _axes[1].configuredAcceleration;
+    _axes[1].minInterval = 1000000.0f / _axes[1].maxSpeed;
+
     // Plan both moves
     _axes[0].targetSteps = targetA;
     _axes[1].targetSteps = targetB;
@@ -223,7 +237,7 @@ void StepperController::stopAll() {
                 (_axes[i].currentSpeed * _axes[i].currentSpeed) /
                 (2.0f * _axes[i].acceleration)
             );
-            _axes[i].stepsRemaining = min(_axes[i].stepsRemaining, decelSteps);
+            _axes[i].stepsRemaining = min((int32_t)_axes[i].stepsRemaining, decelSteps);
             _axes[i].decelStart = 0; // Start decelerating immediately
         }
     }

@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎪 Claw Machine</title>
+    <meta name="description" content="DIY Arcade Claw Machine — Player Interface">
+    <link rel="stylesheet" href="css/design-system.css">
+    <style>
+        :root {
+            --color-sky-bottom: #c0dbe8;
+            --color-sky-top: #ffffff;
+        }
+
+        /* === Player View Styles === */
+        body {
+            background: linear-gradient(180deg, var(--color-sky-top) 0%, var(--color-sky-bottom) 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Sky Animations */
+        .sky-animations {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: -1;
+            overflow: hidden;
+        }
+
+        .cloud-wrapper {
+            position: absolute;
+            left: 0;
+            will-change: transform;
+            transition: opacity 2s ease;
+        }
+
+        .cloud-wrapper[data-depth="0"] { z-index: 1; }
+        .cloud-wrapper[data-depth="1"] { z-index: 2; }
+        .cloud-wrapper[data-depth="2"] { z-index: 3; }
+
+        .cloud {
+            position: relative;
+            background-size: contain;
+            background-repeat: no-repeat;
+        }
+
+        @keyframes cloudFly {
+            from {
+                transform: translateX(calc(-100% - 100px)) scaleX(var(--cloud-scale-x, 1));
+            }
+            to {
+                transform: translateX(calc(100vw + 200px)) scaleX(var(--cloud-scale-x, 1));
+            }
+        }
+
+        .player-container {
+            width: 100%;
+            max-width: 800px;
+            padding: var(--sp-6);
+            text-align: center;
+        }
+
+        /* Machine Title */
+        .machine-title {
+            font-family: var(--font-display);
+            font-size: var(--fs-5xl);
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--clr-primary), hsl(220, 80%, 55%));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: var(--sp-2);
+            animation: slide-up 0.6s var(--ease-out);
+        }
+
+        .machine-subtitle {
+            font-size: var(--fs-lg);
+            color: var(--clr-text-muted);
+            margin-bottom: var(--sp-8);
+        }
+
+        /* Status Display */
+        .status-display {
+            margin-bottom: var(--sp-8);
+            animation: slide-up 0.8s var(--ease-out);
+        }
+
+        .state-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--sp-3);
+            padding: var(--sp-3) var(--sp-8);
+            font-family: var(--font-display);
+            font-size: var(--fs-2xl);
+            font-weight: var(--fw-bold);
+            border-radius: var(--radius-full);
+            letter-spacing: 0.05em;
+        }
+
+        .state-badge.ready {
+            background: linear-gradient(135deg, hsla(145, 65%, 48%, 0.15), hsla(145, 65%, 48%, 0.05));
+            color: var(--clr-success);
+            animation: glow-pulse 2s ease-in-out infinite;
+            box-shadow: 0 0 20px hsla(145, 65%, 48%, 0.2);
+        }
+
+        .state-badge.playing {
+            background: linear-gradient(135deg, hsla(200, 85%, 58%, 0.15), hsla(200, 85%, 58%, 0.05));
+            color: var(--clr-primary);
+        }
+
+        .state-badge.win {
+            background: linear-gradient(135deg, hsla(50, 100%, 50%, 0.2), hsla(38, 95%, 58%, 0.1));
+            color: hsl(38, 90%, 45%);
+            animation: bounce-in 0.6s var(--ease-bounce);
+        }
+
+        .state-badge.error {
+            background: linear-gradient(135deg, hsla(0, 75%, 55%, 0.15), hsla(0, 75%, 55%, 0.05));
+            color: var(--clr-danger);
+            animation: shake 0.5s ease-in-out;
+        }
+
+        .state-badge.idle {
+            background: var(--clr-surface-alt);
+            color: var(--clr-text-muted);
+        }
+
+        /* Game Timer */
+        .game-timer {
+            margin: var(--sp-8) 0;
+            animation: slide-up 0.8s var(--ease-out);
+        }
+
+        .timer-value {
+            font-family: var(--font-display);
+            font-size: 6rem;
+            font-weight: 800;
+            color: var(--clr-primary);
+            line-height: 1;
+            transition: color var(--duration-normal);
+        }
+
+        .timer-value.warning {
+            color: var(--clr-warning);
+        }
+
+        .timer-value.danger {
+            color: var(--clr-danger);
+            animation: pulse-dot 0.5s infinite;
+        }
+
+        .timer-label {
+            font-size: var(--fs-lg);
+            color: var(--clr-text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        /* Start Button */
+        .start-btn {
+            padding: var(--sp-6) var(--sp-16);
+            font-size: var(--fs-3xl);
+            font-family: var(--font-display);
+            font-weight: 800;
+            border: none;
+            border-radius: var(--radius-xl);
+            background: linear-gradient(135deg, var(--clr-success), hsl(145, 60%, 42%));
+            color: white;
+            cursor: pointer;
+            box-shadow: 0 8px 32px hsla(145, 65%, 40%, 0.4);
+            transition: all var(--duration-normal) var(--ease-out);
+            min-height: 80px;
+            animation: bounce-in 1s var(--ease-bounce);
+        }
+
+        .start-btn:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 12px 40px hsla(145, 65%, 40%, 0.5);
+        }
+
+        .start-btn:active {
+            transform: scale(0.98);
+        }
+
+        .start-btn:disabled {
+            background: var(--clr-text-muted);
+            box-shadow: none;
+            cursor: not-allowed;
+            animation: none;
+        }
+
+        /* Credits */
+        .credits-display {
+            margin-top: var(--sp-6);
+            font-size: var(--fs-xl);
+            color: var(--clr-text-light);
+        }
+
+        .credits-value {
+            font-weight: var(--fw-bold);
+            color: var(--clr-primary);
+        }
+
+        /* Win/Loss Animation */
+        .result-display {
+            display: none;
+            margin: var(--sp-8) 0;
+        }
+
+        .result-display.visible {
+            display: block;
+        }
+
+        .result-text {
+            font-family: var(--font-display);
+            font-size: var(--fs-5xl);
+            font-weight: 800;
+        }
+
+        .result-text.win {
+            background: linear-gradient(135deg, hsl(50, 100%, 50%), hsl(38, 95%, 55%));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: bounce-in 0.6s var(--ease-bounce);
+        }
+
+        .result-text.loss {
+            color: var(--clr-text-muted);
+            animation: fade-in 0.5s var(--ease-out);
+        }
+
+        .result-emoji {
+            font-size: 5rem;
+            animation: bounce-in 0.8s var(--ease-bounce);
+        }
+
+        /* Connection indicator */
+        .connection-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: var(--sp-2) var(--sp-4);
+            text-align: center;
+            font-size: var(--fs-xs);
+            transition: all var(--duration-normal);
+        }
+
+        .connection-bar.connected {
+            background: hsla(145, 65%, 48%, 0.1);
+            color: var(--clr-success);
+        }
+
+        .connection-bar.disconnected {
+            background: hsla(0, 75%, 55%, 0.1);
+            color: var(--clr-danger);
+        }
+
+        /* Navigation link to admin */
+        .admin-link {
+            position: fixed;
+            top: var(--sp-4);
+            right: var(--sp-4);
+            font-size: var(--fs-sm);
+            color: var(--clr-text-muted);
+            text-decoration: none;
+            opacity: 0.3;
+            transition: opacity var(--duration-normal);
+        }
+
+        .admin-link:hover {
+            opacity: 1;
+        }
+
+        /* Confetti canvas */
+        #confetti {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    <div class="sky-animations" id="skyContainer"></div>
+    <a href="dashboard.html" class="admin-link" id="adminLink">⚙️ Dashboard</a>
+
+    <canvas id="confetti"></canvas>
+
+    <div class="player-container">
+        <!-- Title -->
+        <h1 class="machine-title">🎪 Claw Machine</h1>
+        <p class="machine-subtitle">Grab a prize!</p>
+
+        <!-- Status -->
+        <div class="status-display">
+            <div class="state-badge idle" id="stateBadge">
+                <span class="badge-dot" id="stateDot"></span>
+                <span id="stateText">CONNECTING...</span>
+            </div>
+        </div>
+
+        <!-- Game Timer (shown during game) -->
+        <div class="game-timer" id="timerSection" style="display: none;">
+            <div class="timer-value" id="timerValue">30</div>
+            <div class="timer-label">seconds remaining</div>
+        </div>
+
+        <!-- Start Button (shown when ready) -->
+        <button class="start-btn" id="startBtn" disabled>
+            🎮 PRESS TO PLAY
+        </button>
+
+        <!-- Result Display -->
+        <div class="result-display" id="resultDisplay">
+            <div class="result-emoji" id="resultEmoji">🎉</div>
+            <div class="result-text" id="resultText">YOU WIN!</div>
+        </div>
+
+        <!-- Credits -->
+        <div class="credits-display" id="creditsDisplay">
+            Credits: <span class="credits-value" id="creditsValue">∞</span>
+        </div>
+    </div>
+
+    <div class="connection-bar disconnected" id="connectionBar">
+        ⚡ Connecting to machine...
+    </div>
+
+    <script type="module">
+        import { WebSocketClient } from './js/websocket-client.js';
+        import { StateManager } from './js/state-manager.js';
+        import { AudioManager } from './js/utils/audio-manager.js';
+
+        const ws = new WebSocketClient();
+        const state = new StateManager();
+        const audio = new AudioManager('/sounds');
+
+        // DOM elements
+        const stateBadge = document.getElementById('stateBadge');
+        const stateText = document.getElementById('stateText');
+        const timerSection = document.getElementById('timerSection');
+        const timerValue = document.getElementById('timerValue');
+        const startBtn = document.getElementById('startBtn');
+        const resultDisplay = document.getElementById('resultDisplay');
+        const resultEmoji = document.getElementById('resultEmoji');
+        const resultText = document.getElementById('resultText');
+        const creditsValue = document.getElementById('creditsValue');
+        const connectionBar = document.getElementById('connectionBar');
+
+        // Handle telemetry updates
+        ws.on('telemetry', (data) => {
+            state.updateFromTelemetry(data);
+        });
+
+        let backendConnected = false;
+        let espConnected = false;
+
+        function updateConnectionUI() {
+            const isFullyConnected = backendConnected && espConnected;
+            state.update({ connected: isFullyConnected });
+            
+            if (!backendConnected) {
+                connectionBar.className = 'connection-bar disconnected';
+                connectionBar.textContent = '⚡ Disconnected from Server...';
+            } else if (!espConnected) {
+                connectionBar.className = 'connection-bar disconnected';
+                connectionBar.textContent = '⚡ Server looking for Claw Machine...';
+            } else {
+                connectionBar.className = 'connection-bar connected';
+                connectionBar.textContent = '🟢 Connected to Claw Machine';
+            }
+        }
+
+        ws.on('connection', ({ connected }) => {
+            backendConnected = connected;
+            if (!connected) espConnected = false;
+            updateConnectionUI();
+        });
+
+        ws.on('heartbeat_ack', (data) => {
+            if (espConnected !== data.esp_connected) {
+                espConnected = data.esp_connected;
+                updateConnectionUI();
+            }
+        });
+
+        // Game events
+        ws.on('game_event', (data) => {
+            if (data.event === 'win') {
+                showResult('win');
+                audio.play('win');
+                launchConfetti();
+            } else if (data.event === 'loss') {
+                showResult('loss');
+                audio.play('loss');
+            } else if (data.event === 'game_start') {
+                audio.play('game_start');
+            } else if (data.event === 'coin_inserted') {
+                audio.play('coin_insert');
+            }
+        });
+
+        ws.on('prize', () => {
+            audio.play('prize_detected');
+        });
+
+        // State change reactor
+        state.on('change', (changes) => {
+            // Update state badge
+            if (changes.machineState !== undefined) {
+                updateStateBadge(changes.machineState);
+            }
+
+            // Update timer
+            if (changes.gameTime !== undefined) {
+                updateTimer(changes.gameTime);
+            }
+
+            // Update credits
+            if (changes.credits !== undefined) {
+                creditsValue.textContent = changes.credits >= 999 ? '∞' : changes.credits;
+            }
+
+            // Enable/disable start button and set text
+            const canStart = state.isReady && state.state.connected;
+            startBtn.disabled = !canStart;
+            
+            if (state.state.machineState === 'IDLE' && state.state.credits === 0) {
+                startBtn.textContent = '🪙 INSERT COIN';
+                startBtn.style.display = 'inline-block';
+            } else if (state.isReady) {
+                startBtn.textContent = '🎮 PRESS TO PLAY';
+            }
+        });
+
+        function updateStateBadge(machineState) {
+            // Reset classes
+            stateBadge.className = 'state-badge';
+            resultDisplay.classList.remove('visible');
+
+            const stateMap = {
+                'IDLE':            { text: 'IDLE', cls: 'idle' },
+                'READY':           { text: 'READY!', cls: 'ready' },
+                'PLAYING':         { text: 'PLAYING', cls: 'playing' },
+                'CLAW_DESCENDING': { text: 'GRABBING...', cls: 'playing' },
+                'CLAW_GRABBING':   { text: 'GRIPPING...', cls: 'playing' },
+                'CLAW_RETRACTING': { text: 'LIFTING...', cls: 'playing' },
+                'RETURNING':       { text: 'MOVING...', cls: 'playing' },
+                'RELEASING':       { text: 'DROPPING...', cls: 'playing' },
+                'CHECKING_PRIZE':  { text: 'CHECKING...', cls: 'playing' },
+                'WIN':             { text: '🎉 YOU WIN!', cls: 'win' },
+                'GAME_OVER':       { text: 'GAME OVER', cls: 'idle' },
+                'HOMING':          { text: 'HOMING...', cls: 'idle' },
+                'ERROR':           { text: 'ERROR', cls: 'error' },
+                'EMERGENCY_STOP':  { text: '🛑 E-STOP', cls: 'error' },
+                'MAINTENANCE':     { text: '🔧 MAINTENANCE', cls: 'idle' },
+                'INITIALIZING':    { text: 'STARTING...', cls: 'idle' },
+            };
+
+            const info = stateMap[machineState] || { text: machineState, cls: 'idle' };
+            stateText.textContent = info.text;
+            stateBadge.classList.add(info.cls);
+
+            // Show/hide elements based on state
+            const playing = state.isPlaying;
+            timerSection.style.display = playing ? 'block' : 'none';
+            startBtn.style.display = (machineState === 'READY' || machineState === 'IDLE') ? 'inline-block' : 'none';
+        }
+
+        function updateTimer(gameTimeMs) {
+            const seconds = Math.ceil(gameTimeMs / 1000);
+            timerValue.textContent = seconds;
+
+            timerValue.className = 'timer-value';
+            if (seconds <= 5) timerValue.classList.add('danger');
+            else if (seconds <= 10) timerValue.classList.add('warning');
+        }
+
+        function showResult(result) {
+            resultDisplay.classList.add('visible');
+            if (result === 'win') {
+                resultEmoji.textContent = '🎉';
+                resultText.textContent = 'YOU WIN!';
+                resultText.className = 'result-text win';
+            } else {
+                resultEmoji.textContent = '😔';
+                resultText.textContent = 'Try Again!';
+                resultText.className = 'result-text loss';
+            }
+
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                resultDisplay.classList.remove('visible');
+            }, 5000);
+        }
+
+        // Confetti animation
+        function launchConfetti() {
+            const canvas = document.getElementById('confetti');
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            const particles = [];
+            const colors = ['#FFD700', '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7'];
+
+            for (let i = 0; i < 100; i++) {
+                particles.push({
+                    x: Math.random() * canvas.width,
+                    y: -10,
+                    vx: (Math.random() - 0.5) * 8,
+                    vy: Math.random() * 3 + 2,
+                    size: Math.random() * 8 + 4,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    rotation: Math.random() * 360,
+                    rotSpeed: (Math.random() - 0.5) * 10,
+                });
+            }
+
+            let frame = 0;
+            function animate() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                particles.forEach(p => {
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.vy += 0.1;
+                    p.rotation += p.rotSpeed;
+                    ctx.save();
+                    ctx.translate(p.x, p.y);
+                    ctx.rotate(p.rotation * Math.PI / 180);
+                    ctx.fillStyle = p.color;
+                    ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+                    ctx.restore();
+                });
+                frame++;
+                if (frame < 180) requestAnimationFrame(animate);
+                else ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+            animate();
+        }
+
+        // Start game button
+        startBtn.addEventListener('click', () => {
+            ws.sendCommand('game_start', { player: 'Player' });
+            audio.play('button_click');
+        });
+
+        // Cloud System
+        function isMobile() {
+            return window.innerWidth < 768;
+        }
+
+        function pickCloudDepth() {
+            const r = Math.random();
+            if (r < 0.55) return 0;
+            if (r < 0.85) return 1;
+            return 2;
+        }
+
+        function createCloud(container, preheat = false) {
+            const cloudImages = ['assets/cloud01.webp', 'assets/cloud02.webp', 'assets/cloud03.webp'];
+            const wrapper = document.createElement('div');
+            wrapper.className = 'cloud-wrapper';
+            const cloud = document.createElement('div');
+            cloud.className = 'cloud';
+            
+            const img = cloudImages[Math.floor(Math.random() * cloudImages.length)];
+            const depth = pickCloudDepth();
+
+            let scale, duration, opacity;
+            if (depth === 0) {
+                scale = 0.7 + Math.random() * 0.5;
+                duration = 180 + Math.random() * 40;
+                opacity = 0.25 + Math.random() * 0.1;
+            } else if (depth === 1) {
+                scale = 1.4 + Math.random() * 0.8;
+                duration = 110 + Math.random() * 30;
+                opacity = 0.5 + Math.random() * 0.15;
+            } else {
+                scale = 2.8 + Math.random() * 1.5;
+                duration = 70 + Math.random() * 25;
+                opacity = 0.75 + Math.random() * 0.15;
+            }
+
+            if (isMobile()) duration *= 0.45;
+
+            const skyHeight = container.getBoundingClientRect().height;
+            const top = Math.random() * skyHeight;
+
+            wrapper.style.top = `${top}px`;
+            wrapper.dataset.depth = depth;
+
+            let animationDelay = 0;
+            if (preheat) animationDelay = -(Math.random() * duration);
+
+            const scaleX = Math.random() > 0.5 ? 1 : -1;
+
+            cloud.style.cssText = `
+                background-image: url(${img});
+                width: ${300 * scale}px;
+                height: ${160 * scale}px;
+                opacity: ${opacity};
+                --cloud-scale-x: ${scaleX};
+                animation: cloudFly ${duration}s ease-in-out forwards;
+                animation-delay: ${animationDelay}s;
+            `;
+
+            wrapper.appendChild(cloud);
+            container.appendChild(wrapper);
+
+            const removeAfter = (duration + Math.abs(animationDelay)) * 1000 + 500;
+            setTimeout(() => wrapper.remove(), removeAfter);
+        }
+
+        function spawnClouds(container) {
+            const skyH = container.getBoundingClientRect().height;
+            const initialClouds = Math.min(200, Math.max(40, Math.round(skyH / 35)));
+            for (let i = 0; i < initialClouds; i++) {
+                createCloud(container, true);
+            }
+
+            function scheduleNextCloud() {
+                const delay = 600 + Math.random() * 900;
+                setTimeout(() => {
+                    createCloud(container, false);
+                    scheduleNextCloud();
+                }, delay);
+            }
+            scheduleNextCloud();
+        }
+
+        const skyContainer = document.getElementById('skyContainer');
+        if (skyContainer) {
+            spawnClouds(skyContainer);
+        }
+
+        // Initialize
+        audio.init();
+        ws.connect();
+    </script>
+</body>
+</html>

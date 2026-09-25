@@ -121,6 +121,7 @@ private:
     void _handleError();
     void _handleEStop();
     void _handleMaintenance();
+    void _endGame();
 
     bool _canStartGame() const;
     void _emitGameEvent(const char* event, const char* data = "");

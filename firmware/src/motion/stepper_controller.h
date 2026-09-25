@@ -35,9 +35,11 @@ struct StepperState {
     int32_t targetSteps;            // Target position in steps
 
     // Motion parameters (in steps)
-    float maxSpeed;         // steps/sec
-    float acceleration;     // steps/sec²
-    float currentSpeed;     // Current instantaneous speed (steps/sec)
+    float maxSpeed;               // Current move's max speed (steps/sec)
+    float configuredMaxSpeed;     // Globally configured max speed
+    float acceleration;           // Current move's acceleration
+    float configuredAcceleration; // Globally configured acceleration
+    float currentSpeed;           // Current instantaneous speed (steps/sec)
 
     // Move state
     volatile int32_t stepsRemaining;

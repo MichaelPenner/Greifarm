@@ -123,8 +123,8 @@
 // Buzzer for local audio feedback (optional)
 #define PIN_BUZZER          23  // GPIO 23 — PWM capable
 
-// Spare GPIO on CNC Shield SpnEn header
-#define PIN_SPARE_1         32  // GPIO 32 — available for future use
+// Spare GPIO on CNC Shield SpnEn header repurposed for Coin Acceptor
+#define PIN_COIN_ACCEPTOR   32  // GPIO 32 — open-collector pulse from PY-800VI
 
 // =============================================================
 // Pin validation — compile-time checks
