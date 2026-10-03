@@ -87,9 +87,10 @@ bool MotionPlanner::moveRelativeZ(float dz_mm) {
 }
 
 void MotionPlanner::setJoystickSpeed(float speed_x, float speed_y, float speed_z) {
-    _joySpeedX = speed_x;
-    _joySpeedY = speed_y;
-    _joySpeedZ = speed_z;
+    // Clamp inputs to safe range to prevent oversized values from buggy clients
+    _joySpeedX = constrain(speed_x, -1.0f, 1.0f);
+    _joySpeedY = constrain(speed_y, -1.0f, 1.0f);
+    _joySpeedZ = constrain(speed_z, -1.0f, 1.0f);
 }
 
 void MotionPlanner::stop() {
@@ -110,7 +111,7 @@ void MotionPlanner::emergencyStop() {
 }
 
 bool MotionPlanner::update() {
-    _processJoystickMovement();
+    // Only stepper pulsing happens here (runs in 20kHz timer task)
     return _steppers.update();
 }
 
@@ -170,7 +171,7 @@ bool MotionPlanner::_validateAndMove(float x, float y) {
     return true;
 }
 
-void MotionPlanner::_processJoystickMovement() {
+void MotionPlanner::processJoystickMovement() {
     unsigned long now = millis();
     if (now - _lastJoyUpdate < JOY_MOVE_INTERVAL_MS) return;
     _lastJoyUpdate = now;
@@ -187,7 +188,11 @@ void MotionPlanner::_processJoystickMovement() {
         return;
     }
 
-    if (_posState == PositionState::UNKNOWN) return;
+    // If the steppers reached their target but the joystick is still held,
+    // we must clear the flag so it can plan a new move.
+    if (_isJoystickMove && !_steppers.isAnyMoving()) {
+        _isJoystickMove = false;
+    }
 
     // Ignore if a non-joystick move is currently running
     if (!_isJoystickMove && 
@@ -202,21 +207,29 @@ void MotionPlanner::_processJoystickMovement() {
     _lastJoyY = _joySpeedY;
     _lastJoyZ = _joySpeedZ;
 
-    // If input changed, we must re-plan the move
-    if (inputChanged) {
+    // If input changed, stop current move and re-plan immediately
+    if (inputChanged && _isJoystickMove) {
+        _steppers.stopAll();
         _isJoystickMove = false;
     }
 
     // Start a new joystick move only if we aren't already running one
-    // This prevents constant re-planning and stuttering
     if (!_isJoystickMove) {
-        float targetX = getX();
-        float targetY = getY();
-        float targetZ = getZ();
+        // Use large relative moves in the joystick direction, clamped to limits.
+        // The move will be re-planned when joystick input changes or is released.
+        float moveDistMm = 500.0f; // Large enough to keep moving until released
 
-        if (abs(_joySpeedX) > 0.01f) targetX = (_joySpeedX > 0) ? cfg.x_max_mm : 0.0f;
-        if (abs(_joySpeedY) > 0.01f) targetY = (_joySpeedY > 0) ? cfg.y_max_mm : 0.0f;
-        if (abs(_joySpeedZ) > 0.01f) targetZ = (_joySpeedZ > 0) ? cfg.z_max_mm : 0.0f;
+        float targetX = getX() + _joySpeedX * moveDistMm;
+        float targetY = getY() + _joySpeedY * moveDistMm;
+        float targetZ = getZ() + _joySpeedZ * moveDistMm;
+
+        // Clamp to software limits — critical safety, but only if homed!
+        // If unhomed, we allow free movement so the user can manually jog it.
+        if (_posState != PositionState::UNKNOWN) {
+            targetX = constrain(targetX, 0.0f, cfg.x_max_mm);
+            targetY = constrain(targetY, 0.0f, cfg.y_max_mm);
+            targetZ = constrain(targetZ, 0.0f, cfg.z_max_mm);
+        }
 
         if (abs(_joySpeedX) > 0.01f || abs(_joySpeedY) > 0.01f) {
             _validateAndMove(targetX, targetY);
@@ -231,3 +244,4 @@ void MotionPlanner::_processJoystickMovement() {
         _isJoystickMove = true;
     }
 }
+

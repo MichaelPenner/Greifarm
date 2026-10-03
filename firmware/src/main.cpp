@@ -5,6 +5,7 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <ArduinoOTA.h>
+#include "esp_timer.h"
 
 #include "config/machine_config.h"
 #include "config/pin_config.h"
@@ -37,6 +38,11 @@ static WebSocketServer*   wsServer = nullptr;
 
 // Timers
 static NonBlockingTimer   joystickTimer(JOY_READ_INTERVAL_MS);
+esp_timer_handle_t        motionTimer;
+
+void motionTimerCallback(void* arg) {
+    motion.update();
+}
 
 // =============================================================
 // WiFi Setup
@@ -134,6 +140,20 @@ void onGameEvent(const char* event, const char* data) {
 
 void setup() {
     Serial.begin(115200);
+
+    // CRITICAL: Disable motor drivers IMMEDIATELY on boot.
+    // GPIO 12 (Z STEP) is an ESP32 bootstrap pin that floats during power-on,
+    // sending spurious step pulses to the Z motor driver → loud noise/vibration.
+    // We must pull ENABLE high and STEP pins low BEFORE the boot delay.
+    pinMode(PIN_STEPPER_ENABLE, OUTPUT);
+    digitalWrite(PIN_STEPPER_ENABLE, HIGH); // HIGH = drivers disabled (A4988)
+    pinMode(PIN_MOTOR_A_STEP, OUTPUT);
+    digitalWrite(PIN_MOTOR_A_STEP, LOW);
+    pinMode(PIN_MOTOR_B_STEP, OUTPUT);
+    digitalWrite(PIN_MOTOR_B_STEP, LOW);
+    pinMode(PIN_MOTOR_Z_STEP, OUTPUT);
+    digitalWrite(PIN_MOTOR_Z_STEP, LOW);
+
     delay(SAFE_BOOT_DELAY_MS); // Wait for power to stabilize
 
     LOG_I("MAIN", "=================================");
@@ -167,6 +187,18 @@ void setup() {
 
     // 7. Start timers
     joystickTimer.start();
+    
+    // Start high-priority motion timer (50us = 20kHz). This runs in a FreeRTOS task 
+    // that preempts loop() to guarantee perfectly smooth stepper pulses, completely
+    // immune to FastLED and WebSocket blocking delays.
+    const esp_timer_create_args_t timer_args = {
+        .callback = &motionTimerCallback,
+        .arg = nullptr,
+        .dispatch_method = ESP_TIMER_TASK,
+        .name = "motion_timer"
+    };
+    esp_timer_create(&timer_args, &motionTimer);
+    esp_timer_start_periodic(motionTimer, 50);
 
     // 8. Start OTA
     ArduinoOTA.setHostname(DEFAULT_HOSTNAME);
@@ -220,8 +252,9 @@ void loop() {
     // 4. Update claw
     claw.update();
 
-    // 5. Update motion (generates step pulses)
-    motion.update();
+    // 5. Process high-level motion planning (math, joystick interpretation)
+    // The actual stepper pulses are handled by the 20kHz esp_timer task
+    motion.processJoystickMovement();
 
     // 6. Update game state machine
     game.update();

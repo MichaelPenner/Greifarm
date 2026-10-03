@@ -189,9 +189,8 @@ void StepperController::_step(StepperState& s) {
         return;
     }
 
-    // Generate step pulse
+    // Generate step pulse (A4988 needs 1us, digitalWrite takes 1-2us, so no delay needed)
     digitalWrite(s.stepPin, HIGH);
-    delayMicroseconds(STEP_PULSE_WIDTH_US);
     digitalWrite(s.stepPin, LOW);
 
     // Update position

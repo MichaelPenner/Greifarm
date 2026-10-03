@@ -204,13 +204,37 @@
 
         .jog-btn {
             min-height: 60px;
+            touch-action: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
             font-size: var(--fs-xl);
+            transition: all 80ms ease-out;
+            position: relative;
+        }
+
+        .jog-btn:active,
+        .jog-btn.jog-active {
+            background: var(--clr-primary) !important;
+            color: white !important;
+            border-color: var(--clr-primary-dark) !important;
+            box-shadow: inset 0 2px 6px hsla(0, 0%, 0%, 0.2),
+                        0 0 12px hsla(200, 85%, 58%, 0.4);
+            transform: scale(0.94);
         }
 
         .jog-btn.center {
             background: var(--clr-surface-alt);
             color: var(--clr-text-muted);
             border: 2px solid var(--clr-border);
+        }
+
+        .jog-btn.center:active {
+            background: var(--clr-danger) !important;
+            color: white !important;
+            border-color: hsl(0, 75%, 45%) !important;
+            box-shadow: inset 0 2px 6px hsla(0, 0%, 0%, 0.2),
+                        0 0 12px hsla(0, 75%, 55%, 0.4);
         }
 
         /* Config form */
@@ -398,18 +422,18 @@
                     <div style="display:flex; gap:var(--sp-6); align-items:start;">
                         <div class="jog-pad">
                             <div></div>
-                            <button class="btn btn-ghost jog-btn" onpointerdown="sendMove(0, -1, 0)" onpointerup="sendMove(0,0,0)" onpointerleave="sendMove(0,0,0)">⬆️</button>
+                            <button class="btn btn-ghost jog-btn" oncontextmenu="return false;" onpointerdown="sendMove(0, -1, 0, event)" onpointerup="sendMove(0,0,0)" onpointerleave="sendMove(0,0,0)">⬆️</button>
                             <div></div>
-                            <button class="btn btn-ghost jog-btn" onpointerdown="sendMove(-1, 0, 0)" onpointerup="sendMove(0,0,0)" onpointerleave="sendMove(0,0,0)">⬅️</button>
-                            <button class="btn jog-btn center" onclick="sendCmd('stop')">⏹</button>
-                            <button class="btn btn-ghost jog-btn" onpointerdown="sendMove(1, 0, 0)" onpointerup="sendMove(0,0,0)" onpointerleave="sendMove(0,0,0)">➡️</button>
+                            <button class="btn btn-ghost jog-btn" oncontextmenu="return false;" onpointerdown="sendMove(-1, 0, 0, event)" onpointerup="sendMove(0,0,0)" onpointerleave="sendMove(0,0,0)">⬅️</button>
+                            <button class="btn jog-btn center" oncontextmenu="return false;" onclick="sendCmd('stop')">⏹</button>
+                            <button class="btn btn-ghost jog-btn" oncontextmenu="return false;" onpointerdown="sendMove(1, 0, 0, event)" onpointerup="sendMove(0,0,0)" onpointerleave="sendMove(0,0,0)">➡️</button>
                             <div></div>
-                            <button class="btn btn-ghost jog-btn" onpointerdown="sendMove(0, 1, 0)" onpointerup="sendMove(0,0,0)" onpointerleave="sendMove(0,0,0)">⬇️</button>
+                            <button class="btn btn-ghost jog-btn" oncontextmenu="return false;" onpointerdown="sendMove(0, 1, 0, event)" onpointerup="sendMove(0,0,0)" onpointerleave="sendMove(0,0,0)">⬇️</button>
                             <div></div>
                         </div>
                         <div style="display:flex;flex-direction:column;gap:var(--sp-2);">
-                            <button class="btn btn-ghost" onpointerdown="sendMove(0, 0, -1)" onpointerup="sendMove(0,0,0)" onpointerleave="sendMove(0,0,0)">⬆️ Z Up</button>
-                            <button class="btn btn-ghost" onpointerdown="sendMove(0, 0, 1)" onpointerup="sendMove(0,0,0)" onpointerleave="sendMove(0,0,0)">⬇️ Z Down</button>
+                            <button class="btn btn-ghost jog-btn" oncontextmenu="return false;" onpointerdown="sendMove(0, 0, -1, event)" onpointerup="sendMove(0,0,0)" onpointerleave="sendMove(0,0,0)">⬆️ Z Up</button>
+                            <button class="btn btn-ghost jog-btn" oncontextmenu="return false;" onpointerdown="sendMove(0, 0, 1, event)" onpointerup="sendMove(0,0,0)" onpointerleave="sendMove(0,0,0)">⬇️ Z Down</button>
                         </div>
                     </div>
                 </div>
@@ -426,8 +450,8 @@
                 <div class="controls-group">
                     <div class="controls-group-title">⚡ Motors</div>
                     <div class="controls-grid">
-                        <button class="btn btn-success" onclick="sendCmd('enable_motors')">Enable Motors</button>
-                        <button class="btn btn-ghost" onclick="sendCmd('disable_motors')">Disable Motors</button>
+                        <button id="btnEnableMotors" class="btn btn-success" onclick="sendCmd('enable_motors')">Enable Motors</button>
+                        <button id="btnDisableMotors" class="btn btn-ghost" onclick="sendCmd('disable_motors')">Disable Motors</button>
                         <button class="btn btn-primary" onclick="sendCmd('maintenance', {enter:true})">Enter Maint.</button>
                         <button class="btn btn-ghost" onclick="sendCmd('maintenance', {enter:false})">Exit Maint.</button>
                     </div>
@@ -587,7 +611,42 @@
             ws.sendCommand(type, params);
         };
 
-        window.sendMove = function(x, y, z) { ws.sendCommand('move', { x, y, z }); };
+        // Continuous movement with visual feedback and periodic re-send
+        let _moveInterval = null;
+        let _activeJogBtn = null;
+
+        window.sendMove = function(x, y, z, evt) {
+            const isStop = (x === 0 && y === 0 && z === 0);
+
+            // Clear any existing resend interval
+            if (_moveInterval) {
+                clearInterval(_moveInterval);
+                _moveInterval = null;
+            }
+
+            // Remove active class from previous button
+            if (_activeJogBtn) {
+                _activeJogBtn.classList.remove('jog-active');
+                _activeJogBtn = null;
+            }
+
+            // Send the command
+            ws.sendCommand('move', { x, y, z });
+
+            if (!isStop) {
+                // Track active button for visual feedback
+                if (evt && evt.currentTarget) {
+                    _activeJogBtn = evt.currentTarget;
+                    _activeJogBtn.classList.add('jog-active');
+                }
+
+                // Re-send periodically to handle dropped WebSocket messages
+                _moveInterval = setInterval(() => {
+                    ws.sendCommand('move', { x, y, z });
+                }, 150);
+            }
+        };
+
         window.sendJog = function(dx, dy, dz) {
             ws.sendCommand('move_rel', { dx, dy, dz });
         };
@@ -651,6 +710,19 @@
 
             // Sidebar
             document.getElementById('sidebarState').textContent = data.state || '—';
+
+            // Motor buttons
+            const btnEnable = document.getElementById('btnEnableMotors');
+            const btnDisable = document.getElementById('btnDisableMotors');
+            if (btnEnable && btnDisable) {
+                if (data.motors_on) {
+                    btnEnable.className = 'btn btn-success';
+                    btnDisable.className = 'btn btn-ghost';
+                } else {
+                    btnEnable.className = 'btn btn-ghost';
+                    btnDisable.className = 'btn btn-danger';
+                }
+            }
         });
 
         let backendConnected = false;

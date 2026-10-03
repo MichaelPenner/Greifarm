@@ -1,6 +1,6 @@
 name: "Claw Machine Server"
 description: "Permanent FastAPI backend and Web UI for the DIY Claw Machine"
-version: "1.0.5"
+version: "1.0.7"
 slug: "claw_machine"
 init: false
 arch:

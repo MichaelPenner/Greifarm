@@ -65,6 +65,9 @@ public:
     // Status
     bool isMoving() const;
 
+    // Call this from the main loop to process ongoing joystick moves
+    void processJoystickMovement();
+
     // Direct access (for homing, calibration)
     StepperController& steppers() { return _steppers; }
     CoreXYKinematics& kinematics() { return _corexy; }
@@ -85,7 +88,6 @@ private:
     static constexpr unsigned long JOY_MOVE_INTERVAL_MS = 50; // 20Hz jog updates
 
     bool _validateAndMove(float x, float y);
-    void _processJoystickMovement();
     bool _isJoystickMove = false;
 };
 

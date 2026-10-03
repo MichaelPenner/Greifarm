@@ -21,24 +21,20 @@
 // =============================================================
 
 // Motor A (CoreXY) — mapped to CNC Shield X-axis slot
-// Status: ? — verify D1 R32 pin mapping with multimeter
 #define PIN_MOTOR_A_STEP    26  // CNC Shield D2 → GPIO 26
-#define PIN_MOTOR_A_DIR     14  // CNC Shield D5 → GPIO 14
+#define PIN_MOTOR_A_DIR     16  // CNC Shield D5 → GPIO 16
 
 // Motor B (CoreXY) — mapped to CNC Shield Y-axis slot
-// Status: ? — verify D1 R32 pin mapping with multimeter
 #define PIN_MOTOR_B_STEP    25  // CNC Shield D3 → GPIO 25
 #define PIN_MOTOR_B_DIR     27  // CNC Shield D6 → GPIO 27
 
 // Motor Z (Claw lift) — mapped to CNC Shield Z-axis slot
-// Status: ? — verify D1 R32 pin mapping with multimeter
-#define PIN_MOTOR_Z_STEP    12  // CNC Shield D4 → GPIO 12
-#define PIN_MOTOR_Z_DIR     33  // CNC Shield D7 → GPIO 33
+#define PIN_MOTOR_Z_STEP    17  // CNC Shield D4 → GPIO 17
+#define PIN_MOTOR_Z_DIR     14  // CNC Shield D7 → GPIO 14
 
 // Stepper Enable — shared for all drivers on CNC Shield
 // Active LOW — pull LOW to enable motors
-// Status: ? — verify; GPIO 13 may vary by D1 R32 revision
-#define PIN_STEPPER_ENABLE  13  // CNC Shield D8 → GPIO 13
+#define PIN_STEPPER_ENABLE  12  // CNC Shield D8 → GPIO 12
 
 // =============================================================
 // Limit Switches (directly wired or via CNC Shield endstop headers)
@@ -47,16 +43,16 @@
 // =============================================================
 
 // Status: ✓ — existing switch on Sapphire S left side
-#define PIN_LIMIT_X_HOME    2   // CNC Shield D9 → GPIO 2
+#define PIN_LIMIT_X_HOME    13  // CNC Shield D9 → GPIO 13
 
 // Status: ?? — new switch, needs to be installed + wired
-#define PIN_LIMIT_Y_HOME    4   // CNC Shield D10 → GPIO 4
+#define PIN_LIMIT_Y_HOME    5   // CNC Shield D10 → GPIO 5
 
 // Status: ?? — new switch, needs to be installed + wired
-#define PIN_LIMIT_Z_TOP     5   // CNC Shield D11 → GPIO 5
+#define PIN_LIMIT_Z_TOP     23  // CNC Shield D11 → GPIO 23
 
 // Status: ?? — new switch, needs to be installed + wired
-#define PIN_LIMIT_Z_BOTTOM  15  // CNC Shield D12 → GPIO 15
+#define PIN_LIMIT_Z_BOTTOM  19  // CNC Shield D12 (SpnEn) → GPIO 19
 
 // =============================================================
 // Claw Servo
@@ -64,7 +60,7 @@
 // =============================================================
 
 // Status: ✓ — standard PWM-capable GPIO
-#define PIN_CLAW_SERVO      16  // Direct wire to ESP32 GPIO 16
+#define PIN_CLAW_SERVO      33  // Direct wire to ESP32 GPIO 33 (Moved from 16 to avoid CNC Shield D5 conflict)
 
 // =============================================================
 // WS2812B LED Strip
@@ -73,7 +69,7 @@
 // =============================================================
 
 // Status: ✓ — standard digital output GPIO
-#define PIN_WS2812_DATA     17  // Direct wire to ESP32 GPIO 17
+#define PIN_WS2812_DATA     21  // Direct wire to ESP32 GPIO 21 (Moved from 17 to avoid CNC Shield D4 conflict)
 
 // =============================================================
 // Joystick (JH-D400X-R4)
@@ -114,14 +110,14 @@
 // =============================================================
 
 // Status: ✓ — standard digital GPIO
-#define PIN_ESTOP           19  // Direct wire to ESP32 GPIO 19
+#define PIN_ESTOP           22  // Direct wire to ESP32 GPIO 22 (Moved from 19 to avoid conflict)
 
 // =============================================================
 // Optional / Future Expansion
 // =============================================================
 
 // Buzzer for local audio feedback (optional)
-#define PIN_BUZZER          23  // GPIO 23 — PWM capable
+#define PIN_BUZZER          0   // GPIO 0 — PWM capable (Moved from 23, now used by Z Top limit)
 
 // Spare GPIO on CNC Shield SpnEn header repurposed for Coin Acceptor
 #define PIN_COIN_ACCEPTOR   32  // GPIO 32 — open-collector pulse from PY-800VI
