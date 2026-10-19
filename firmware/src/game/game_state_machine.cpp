@@ -92,12 +92,19 @@ void GameStateMachine::_handleInitializing() {
         _homing.startFullHoming();
         _setState(MachineState::HOMING);
     } else {
-        // If auto-home is disabled (usually for testing without endstops),
-        // we assume the current position is (0,0,0) so movement is allowed.
-        _motion.setPositionXY(0, 0);
-        _motion.setPositionZ(0);
-        _motion.setPositionState(PositionState::HOMED);
+        // If auto-home is disabled (testing without endstops),
+        // set position to CENTER of travel range so software limits
+        // allow equal movement in all directions.
+        const auto& cfg = machineConfig.settings();
+        float centerX = cfg.x_max_mm / 2.0f;
+        float centerY = cfg.y_max_mm / 2.0f;
+        float centerZ = cfg.z_max_mm / 2.0f;
+        _motion.setPositionXY(centerX, centerY);
+        _motion.setPositionZ(centerZ);
+        _motion.setPositionState(PositionState::ESTIMATED);
         _setState(MachineState::IDLE);
+        LOG_I(TAG, "No homing — position set to center (%.0f, %.0f, %.0f)",
+              centerX, centerY, centerZ);
     }
 }
 
@@ -370,6 +377,7 @@ bool GameStateMachine::_canStartGame() const {
     const auto& cfg = machineConfig.settings();
 
     if (!_safety.isMovementAllowed()) return false;
+    // Allow game start if position is HOMED or ESTIMATED (unhomed but usable)
     if (_motion.getPositionState() == PositionState::UNKNOWN) return false;
     if (!cfg.free_play && _stats.credits < cfg.credits_per_game) return false;
 

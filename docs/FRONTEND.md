@@ -5,6 +5,7 @@ The frontend is built using standard web technologies (HTML, CSS, JS) without an
 ## Architecture
 
 - **`index.html`**: The main Player UI. Designed for a tablet screen mounted on the machine.
+- **`iframe.html`**: Bespoke CoreXY Claw Machine product showcase page designed for embedding in portfolio webpages. Features cloud background design pattern, AI generated illustrations, interactive scrolling gantry claw animation that grabs feature cards, specifications, and commission inquiry modal.
 - **`dashboard.html`**: The Admin interface. Accessible via browser on the same network to control and configure the machine.
 - **`css/design-system.css`**: Contains all CSS custom properties (colors, spacing, typography) and utility classes.
 - **`js/websocket-client.js`**: Handles the persistent connection to the FastAPI backend.
@@ -25,6 +26,7 @@ python main.py
 
 Then open a browser to:
 - Player UI: `http://localhost:8000/`
+- Iframe Mockup: `http://localhost:8000/iframe.html`
 - Dashboard: `http://localhost:8000/dashboard.html`
 
 ## Adding Custom Sounds

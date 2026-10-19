@@ -224,12 +224,12 @@ void MotionPlanner::processJoystickMovement() {
         float targetZ = getZ() + _joySpeedZ * moveDistMm;
 
         // Clamp to software limits — critical safety, but only if homed!
-        // If unhomed, we allow free movement so the user can manually jog it.
-        if (_posState != PositionState::UNKNOWN) {
-            targetX = constrain(targetX, 0.0f, cfg.x_max_mm);
-            targetY = constrain(targetY, 0.0f, cfg.y_max_mm);
-            targetZ = constrain(targetZ, 0.0f, cfg.z_max_mm);
-        }
+        // [TEMPORARY OVERRIDE] Disable software limits entirely so the user can manually test full travel.
+        // if (_posState != PositionState::UNKNOWN) {
+        //     targetX = constrain(targetX, 0.0f, cfg.x_max_mm);
+        //     targetY = constrain(targetY, 0.0f, cfg.y_max_mm);
+        //     targetZ = constrain(targetZ, 0.0f, cfg.z_max_mm);
+        // }
 
         if (abs(_joySpeedX) > 0.01f || abs(_joySpeedY) > 0.01f) {
             _validateAndMove(targetX, targetY);

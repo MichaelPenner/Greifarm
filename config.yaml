@@ -1,6 +1,6 @@
 name: "Claw Machine Server"
 description: "Permanent FastAPI backend and Web UI for the DIY Claw Machine"
-version: "1.0.7"
+version: "1.0.11"
 slug: "claw_machine"
 init: false
 arch:
@@ -14,5 +14,19 @@ map:
   - config:rw
 options:
   esp_host: "192.168.178.136"
+  steps_per_mm_xy: 640.0
+  steps_per_mm_z: 50.0
+  max_speed_xy: 150.0
+  max_speed_z: 50.0
+  max_mm_x: 220.0
+  max_mm_y: 220.0
+  max_mm_z: 200.0
 schema:
   esp_host: str
+  steps_per_mm_xy: float
+  steps_per_mm_z: float
+  max_speed_xy: float
+  max_speed_z: float
+  max_mm_x: float
+  max_mm_y: float
+  max_mm_z: float

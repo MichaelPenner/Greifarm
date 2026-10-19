@@ -77,6 +77,25 @@ class ESPClient:
                     self._connected = True
                     logger.info("Connected to ESP32!")
 
+                    # Push config from Home Assistant to ESP32
+                    try:
+                        await ws.send(json.dumps({
+                            "type": "set_config",
+                            "config": {
+                                "steps_per_mm": settings.steps_per_mm_xy,
+                                "z_steps_per_mm": settings.steps_per_mm_z,
+                                "x_max_speed": settings.max_speed_xy,
+                                "y_max_speed": settings.max_speed_xy,
+                                "z_max_speed": settings.max_speed_z,
+                                "x_max_mm": settings.max_mm_x,
+                                "y_max_mm": settings.max_mm_y,
+                                "z_max_mm": settings.max_mm_z
+                            }
+                        }))
+                        logger.info("Pushed HA Addon configuration to ESP32.")
+                    except Exception as e:
+                        logger.error(f"Failed to push config: {e}")
+
                     # Send initial heartbeat
                     await ws.send(json.dumps({"type": "heartbeat"}))
 

@@ -17,10 +17,12 @@ void SafetyController::begin() {
 
 void SafetyController::update() {
     // 1. Check E-stop button FIRST (highest priority)
-    if (_sensors.eStopJustTriggered()) {
-        _triggerEStop(ErrorCode::EMERGENCY_STOP);
-        return;
-    }
+    // TEMPORARILY DISABLED: No E-stop button physically connected.
+    // Floating pin causes false triggers that block all movement.
+    // if (_sensors.eStopJustTriggered()) {
+    //     _triggerEStop(ErrorCode::EMERGENCY_STOP);
+    //     return;
+    // }
 
     // If E-stop is active, don't do other checks
     if (_safetyState == SafetyState::ESTOP_ACTIVE) {
@@ -28,7 +30,9 @@ void SafetyController::update() {
     }
 
     // 2. Check limit switches during movement
-    _checkLimitSwitches();
+    // TEMPORARILY DISABLED: No limit switches physically installed.
+    // Floating pins cause false triggers that halt all motors.
+    // _checkLimitSwitches();
 
     // 3. Check communication heartbeat
     _checkCommunication();
@@ -129,7 +133,8 @@ void SafetyController::_checkMotorIdle() {
 
 bool SafetyController::isMovementAllowed() const {
     if (_safetyState == SafetyState::ESTOP_ACTIVE) return false;
-    if (_sensors.isEStopTriggered()) return false;
+    // TEMPORARILY DISABLED: No E-stop button physically connected.
+    // if (_sensors.isEStopTriggered()) return false;
     return true;
 }
 

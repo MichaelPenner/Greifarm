@@ -1,0 +1,1331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎪 The CloudCatcher — Bespoke CoreXY Claw Machine</title>
+    <meta name="description" content="Handmade custom claw machine featuring a light blue CoreXY frame, white cloud bed, and red & dark-blue precision claw.">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/design-system.css">
+
+    <style>
+        :root {
+            --color-sky-bottom: #cbe3f0;
+            --color-sky-top: #ffffff;
+            --color-machine-blue: #7bb5e8;
+            --color-claw-red: #e11d48;
+            --color-claw-darkblue: #1e3a5f;
+            --color-cream-bg: rgba(255, 255, 255, 0.88);
+            --color-text-dark: #0f172a;
+            --color-text-soft: #475569;
+            --glass-card-shadow: 0 24px 60px -15px rgba(59, 130, 246, 0.16), 0 8px 24px -6px rgba(0, 0, 0, 0.06);
+        }
+
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            color: var(--color-text-dark);
+            background: linear-gradient(180deg, var(--color-sky-top) 0%, #e2f0fb 35%, var(--color-sky-bottom) 100%);
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* === Drifting Sky Clouds Background === */
+        .sky-animations {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        .cloud-wrapper {
+            position: absolute;
+            left: 0;
+            will-change: transform;
+            transition: opacity 2s ease;
+        }
+
+        .cloud-wrapper[data-depth="0"] { z-index: 1; }
+        .cloud-wrapper[data-depth="1"] { z-index: 2; }
+        .cloud-wrapper[data-depth="2"] { z-index: 3; }
+
+        .cloud {
+            position: relative;
+            background-size: contain;
+            background-repeat: no-repeat;
+        }
+
+        @keyframes cloudFly {
+            from {
+                transform: translateX(calc(-100% - 100px)) scaleX(var(--cloud-scale-x, 1));
+            }
+            to {
+                transform: translateX(calc(100vw + 200px)) scaleX(var(--cloud-scale-x, 1));
+            }
+        }
+
+        /* === The Real Mechanical Photorealistic Claw (Scroll-Driven) === */
+        .claw-cable-line {
+            position: fixed;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 3px;
+            height: 60px;
+            background: linear-gradient(180deg, #475569 0%, #94a3b8 50%, #64748b 100%);
+            box-shadow: 0 0 6px rgba(0, 0, 0, 0.25);
+            z-index: 150;
+            pointer-events: none;
+            will-change: left, height;
+            transition: left 0.1s cubic-bezier(0.16, 1, 0.3, 1), height 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        /* Top Gantry Mount Collar */
+        .claw-cable-collar {
+            position: fixed;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 48px;
+            height: 14px;
+            background: linear-gradient(180deg, #1e3a5f, #0f243d);
+            border-bottom: 2px solid #38bdf8;
+            border-radius: 0 0 8px 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+            z-index: 155;
+            pointer-events: none;
+            will-change: left;
+            transition: left 0.1s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        /* The Moving Photorealistic Claw Itself */
+        .the-real-claw-rig {
+            position: fixed;
+            top: 60px;
+            left: 50%;
+            transform: translate(-50%, 0);
+            width: 140px;
+            height: 140px;
+            z-index: 160;
+            pointer-events: auto;
+            cursor: pointer;
+            will-change: left, top, transform;
+            transition: left 0.1s cubic-bezier(0.16, 1, 0.3, 1), top 0.16s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+            filter: drop-shadow(0 14px 20px rgba(15, 23, 42, 0.3));
+        }
+
+        .the-real-claw-rig:hover {
+            transform: translate(-50%, 0) scale(1.05);
+        }
+
+        .the-real-claw-rig img.claw-image {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+            transform-origin: top center;
+            transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        /* When Clamping/Grabbing */
+        .the-real-claw-rig.grabbing img.claw-image {
+            transform: scale(0.94) scaleY(1.04);
+            filter: drop-shadow(0 0 16px rgba(225, 29, 72, 0.6));
+        }
+
+        /* Item Held Inside Claw Tips */
+        .claw-captured-item {
+            position: absolute;
+            bottom: -8px;
+            left: 50%;
+            transform: translateX(-50%) scale(0);
+            font-size: 2.2rem;
+            filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.3));
+            transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+            z-index: 20;
+            pointer-events: none;
+        }
+
+        .the-real-claw-rig.has-item .claw-captured-item {
+            transform: translateX(-50%) scale(1);
+        }
+
+        /* Live Speech Bubble Floating with the Claw */
+        .claw-dialog-bubble {
+            position: absolute;
+            top: -34px;
+            left: 50%;
+            transform: translateX(-50%);
+            white-space: nowrap;
+            background: #ffffff;
+            border: 2px solid var(--color-claw-red);
+            color: var(--color-claw-red);
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.78rem;
+            font-weight: 800;
+            padding: 4px 14px;
+            border-radius: 999px;
+            box-shadow: 0 8px 20px rgba(225, 29, 72, 0.25);
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+
+        .claw-dialog-bubble::after {
+            content: '';
+            position: absolute;
+            bottom: -6px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-width: 6px 6px 0;
+            border-style: solid;
+            border-color: #ffffff transparent;
+            display: block;
+            width: 0;
+        }
+
+        .the-real-claw-rig.show-bubble .claw-dialog-bubble {
+            opacity: 1;
+            transform: translateX(-50%) translateY(-4px);
+        }
+
+        /* === Page Layout & Main Viewport === */
+        .showcase-viewport {
+            position: relative;
+            z-index: 10;
+            max-width: 920px;
+            margin: 0 auto;
+            padding: 24px 24px 60px;
+        }
+
+        /* Header Navigation */
+        .maker-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--color-cream-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.95);
+            border-radius: 18px;
+            padding: 14px 24px;
+            box-shadow: var(--glass-card-shadow);
+            margin-bottom: 24px;
+        }
+
+        .brand-zone {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-icon {
+            font-size: 1.8rem;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+        }
+
+        .brand-text h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.35rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            color: #1e293b;
+            line-height: 1.1;
+        }
+
+        .brand-text p {
+            font-size: 0.74rem;
+            color: #64748b;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .nav-buttons {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .pill-btn {
+            background: #ffffff;
+            border: 1.5px solid #e2e8f0;
+            color: #334155;
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.82rem;
+            font-weight: 700;
+            padding: 7px 16px;
+            border-radius: 999px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .pill-btn:hover {
+            border-color: var(--color-claw-red);
+            color: var(--color-claw-red);
+            transform: translateY(-1px);
+        }
+
+        .pill-btn.accent-red {
+            background: linear-gradient(135deg, var(--color-claw-red), #be123c);
+            color: white;
+            border: none;
+            box-shadow: 0 4px 14px rgba(225, 29, 72, 0.35);
+        }
+
+        .pill-btn.accent-red:hover {
+            box-shadow: 0 6px 20px rgba(225, 29, 72, 0.5);
+            transform: translateY(-2px);
+        }
+
+        /* === Giant Macro Hero Showcase === */
+        .macro-hero-card {
+            background: var(--color-cream-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.95);
+            border-radius: 28px;
+            padding: 32px 32px 28px;
+            box-shadow: var(--glass-card-shadow);
+            margin-bottom: 40px;
+            position: relative;
+            text-align: center;
+        }
+
+        .hero-intro-text {
+            max-width: 680px;
+            margin: 0 auto 24px;
+        }
+
+        .handwritten-badge {
+            font-family: 'Caveat', cursive;
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: var(--color-claw-red);
+            display: inline-block;
+            transform: rotate(-2deg);
+            margin-bottom: 6px;
+        }
+
+        .hero-main-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 2.6rem;
+            font-weight: 900;
+            line-height: 1.15;
+            letter-spacing: -0.03em;
+            color: #0f172a;
+            margin-bottom: 12px;
+        }
+
+        .hero-main-title span {
+            color: #0284c7;
+        }
+
+        .hero-subtitle {
+            font-size: 1.05rem;
+            color: #475569;
+            line-height: 1.55;
+        }
+
+        /* HUGE MACRO PICTURE FRAME */
+        .huge-macro-photo-frame {
+            position: relative;
+            border-radius: 24px;
+            overflow: hidden;
+            box-shadow: 0 24px 60px -12px rgba(15, 23, 42, 0.25);
+            border: 4px solid #ffffff;
+            margin-bottom: 18px;
+        }
+
+        .huge-macro-photo-frame img {
+            width: 100%;
+            height: auto;
+            display: block;
+            object-fit: cover;
+        }
+
+        /* Overlay Marker showing this is the interactive claw */
+        .claw-hero-anchor-marker {
+            position: absolute;
+            top: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(8px);
+            border: 1.5px solid var(--color-claw-red);
+            color: var(--color-claw-red);
+            padding: 6px 16px;
+            border-radius: 999px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.78rem;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            animation: pulse-badge 2s infinite ease-in-out;
+            pointer-events: none;
+        }
+
+        @keyframes pulse-badge {
+            0%, 100% { transform: translateX(-50%) scale(1); }
+            50% { transform: translateX(-50%) scale(1.04); }
+        }
+
+        /* Scroll Invitation */
+        .scroll-nudge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.88rem;
+            font-weight: 700;
+            color: var(--color-claw-red);
+            margin-top: 10px;
+        }
+
+        .scroll-down-arrow {
+            animation: bounce-arrow 1.2s infinite ease-in-out;
+        }
+
+        @keyframes bounce-arrow {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(5px); }
+        }
+
+        /* === Grab Stations (Scroll Milestones) === */
+        .stations-headline {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .stations-headline h2 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 2rem;
+            font-weight: 800;
+            color: #0f172a;
+            letter-spacing: -0.02em;
+        }
+
+        .stations-headline p {
+            font-size: 0.92rem;
+            color: #64748b;
+            margin-top: 4px;
+        }
+
+        .grab-cards-stream {
+            display: flex;
+            flex-direction: column;
+            gap: 40px;
+            margin-bottom: 48px;
+        }
+
+        /* Milestone Card */
+        .station-card {
+            background: var(--color-cream-bg);
+            backdrop-filter: blur(20px);
+            border: 2px solid rgba(255, 255, 255, 0.95);
+            border-radius: 26px;
+            padding: 30px;
+            box-shadow: var(--glass-card-shadow);
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 28px;
+            align-items: center;
+            position: relative;
+            transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .station-card.card-reversed {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .station-card.card-reversed .station-img-wrap {
+            order: 1;
+        }
+
+        .station-card.card-reversed .station-content-wrap {
+            order: 2;
+        }
+
+        /* CLAW GRABBING ACTIVE STATE */
+        .station-card.claw-grabbing-now {
+            border-color: var(--color-claw-red);
+            box-shadow: 0 0 0 3px rgba(225, 29, 72, 0.3), var(--glass-card-shadow);
+            transform: translateY(-4px);
+        }
+
+        .station-pill-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #e0f2fe;
+            color: #0369a1;
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.74rem;
+            font-weight: 800;
+            padding: 4px 12px;
+            border-radius: 999px;
+            margin-bottom: 12px;
+            letter-spacing: 0.04em;
+        }
+
+        .station-card.claw-grabbing-now .station-pill-label {
+            background: #ffe4e6;
+            color: #e11d48;
+        }
+
+        .station-content-wrap h3 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.65rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            color: #0f172a;
+            margin-bottom: 10px;
+            line-height: 1.2;
+        }
+
+        .station-content-wrap p {
+            font-size: 0.95rem;
+            color: #475569;
+            line-height: 1.6;
+            margin-bottom: 18px;
+        }
+
+        .station-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .chip {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 6px 14px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: #334155;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .station-action-btn {
+            background: #ffffff;
+            border: 1.5px solid #cbd5e1;
+            color: #334155;
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.84rem;
+            font-weight: 700;
+            padding: 8px 20px;
+            border-radius: 999px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .station-action-btn:hover,
+        .station-card.claw-grabbing-now .station-action-btn {
+            background: var(--color-claw-red);
+            border-color: var(--color-claw-red);
+            color: #ffffff;
+            box-shadow: 0 4px 14px rgba(225, 29, 72, 0.4);
+        }
+
+        .station-img-wrap {
+            border-radius: 20px;
+            overflow: hidden;
+            border: 3px solid #ffffff;
+            box-shadow: 0 12px 30px -8px rgba(0, 0, 0, 0.12);
+        }
+
+        .station-img-wrap img {
+            width: 100%;
+            height: auto;
+            display: block;
+            object-fit: cover;
+            transition: transform 0.4s ease;
+        }
+
+        .station-card:hover .station-img-wrap img {
+            transform: scale(1.03);
+        }
+
+        /* === Craftsmanship Story Strip === */
+        .craft-highlights {
+            background: linear-gradient(135deg, #7bb5e8 0%, #5a9bd6 100%);
+            border-radius: 24px;
+            padding: 32px 28px;
+            color: white;
+            box-shadow: 0 20px 45px -10px rgba(90, 155, 214, 0.4);
+            margin-bottom: 40px;
+        }
+
+        .craft-highlights-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+            text-align: center;
+        }
+
+        .craft-icon {
+            font-size: 2.2rem;
+            margin-bottom: 8px;
+        }
+
+        .craft-highlights-grid h4 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.15rem;
+            font-weight: 800;
+            margin-bottom: 6px;
+        }
+
+        .craft-highlights-grid p {
+            font-size: 0.86rem;
+            color: #e0f2fe;
+            line-height: 1.45;
+        }
+
+        /* === Buyer Commission Call To Action === */
+        .commission-section {
+            background: var(--color-cream-bg);
+            backdrop-filter: blur(20px);
+            border: 2px solid rgba(255, 255, 255, 0.95);
+            border-radius: 28px;
+            padding: 38px 32px;
+            box-shadow: var(--glass-card-shadow);
+            text-align: center;
+        }
+
+        .commission-section h3 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 2.1rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            color: #0f172a;
+            margin-bottom: 10px;
+        }
+
+        .commission-section p {
+            font-size: 0.98rem;
+            color: #475569;
+            max-width: 580px;
+            margin: 0 auto 24px;
+            line-height: 1.55;
+        }
+
+        .commission-btns-wrap {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        /* Inquiry Modal Backdrop */
+        .inquiry-modal-wrap {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.65);
+            backdrop-filter: blur(6px);
+            z-index: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease;
+        }
+
+        .inquiry-modal-wrap.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .inquiry-dialog {
+            background: #ffffff;
+            border-radius: 24px;
+            max-width: 480px;
+            width: 100%;
+            padding: 32px;
+            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.25);
+            position: relative;
+            transform: scale(0.92);
+            transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .inquiry-modal-wrap.open .inquiry-dialog {
+            transform: scale(1);
+        }
+
+        .close-dialog-btn {
+            position: absolute;
+            top: 18px;
+            right: 18px;
+            background: #f1f5f9;
+            border: none;
+            border-radius: 50%;
+            width: 34px;
+            height: 34px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #64748b;
+        }
+
+        .input-group {
+            margin-top: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            text-align: left;
+        }
+
+        .input-group label {
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: #334155;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .custom-input {
+            width: 100%;
+            padding: 11px 14px;
+            border-radius: 12px;
+            border: 1.5px solid #e2e8f0;
+            font-family: inherit;
+            font-size: 0.9rem;
+        }
+
+        .custom-input:focus {
+            outline: none;
+            border-color: var(--color-claw-red);
+            box-shadow: 0 0 0 3px rgba(225, 29, 72, 0.15);
+        }
+
+        /* Responsive Breakpoints */
+        @media (max-width: 768px) {
+            .showcase-viewport {
+                padding: 16px 14px 40px;
+            }
+            .hero-main-title {
+                font-size: 1.95rem;
+            }
+            .station-card, .station-card.card-reversed {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            .station-card.card-reversed .station-img-wrap {
+                order: 2;
+            }
+            .station-card.card-reversed .station-content-wrap {
+                order: 1;
+            }
+            .craft-highlights-grid {
+                grid-template-columns: 1fr;
+                gap: 18px;
+            }
+            .macro-hero-card {
+                padding: 20px 16px;
+            }
+            .the-real-claw-rig {
+                width: 110px;
+                height: 110px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Sky Animation Background with Floating WebP Clouds -->
+    <div class="sky-animations" id="skyContainer"></div>
+
+    <!-- Top Cable Collar on Header -->
+    <div class="claw-cable-collar" id="cableCollar"></div>
+
+    <!-- Steel Cable that Extends Downward as You Scroll -->
+    <div class="claw-cable-line" id="cableLine"></div>
+
+    <!-- THE REAL PHOTOREALISTIC CANDY RED & DARK BLUE CLAW RIG (No generic icon claw!) -->
+    <div class="the-real-claw-rig" id="realClawRig" title="Click to trigger claw grab!">
+        <!-- Dialog speech bubble on grab -->
+        <div class="claw-dialog-bubble" id="clawBubble">GRABBED!</div>
+
+        <!-- The Actual Photorealistic Claw Cutout matching the Macro Hero -->
+        <img src="assets/claw_cutout.png" alt="Real Red & Dark Blue Claw Gripper" class="claw-image" id="clawImg">
+
+        <!-- Captured Item / Badge Held in Claw Tips -->
+        <div class="claw-captured-item" id="clawItem">⭐</div>
+    </div>
+
+    <!-- Main Showcase Viewport -->
+    <main class="showcase-viewport">
+
+        <!-- Navigation Bar -->
+        <header class="maker-header">
+            <div class="brand-zone">
+                <span class="brand-icon">☁️</span>
+                <div class="brand-text">
+                    <h1>THE CLOUDCATCHER</h1>
+                    <p>Custom Handcrafted Claw Machine</p>
+                </div>
+            </div>
+
+            <div class="nav-buttons">
+                <button class="pill-btn" id="btnAudioToggle" title="Toggle Sound Effects">
+                    <span>🔊</span> Sound
+                </button>
+                <button class="pill-btn accent-red" onclick="openModal()">
+                    <span>✨</span> Commission
+                </button>
+            </div>
+        </header>
+
+        <!-- Huge Hero Card: Macro Close-Up with Claw Centered at the Top -->
+        <section class="macro-hero-card" id="heroCard">
+            <div class="hero-intro-text">
+                <span class="handwritten-badge">Handmade in our maker studio ☁️</span>
+                <h2 class="hero-main-title">
+                    The Custom Arcade Claw Machine Built with <span>CoreXY Precision</span>.
+                </h2>
+                <p class="hero-subtitle">
+                    Crafted from a pastel light blue 3D printer frame with fluffy white clouds on the prize bed, exterior-mounted acrylic glass, and a glossy candy red & dark blue claw.
+                </p>
+            </div>
+
+            <!-- HUGE MACRO HERO PICTURE -->
+            <div class="huge-macro-photo-frame" id="macroHeroPhoto">
+                <img src="assets/claw_hero.jpg" alt="Macro close-up of the CoreXY Claw Machine with centered red and dark blue claw" loading="eager">
+                
+                <div class="claw-hero-anchor-marker">
+                    <span>🎮</span> The Interactive Red & Dark Blue Claw
+                </div>
+            </div>
+
+            <div class="scroll-nudge">
+                <span>Scroll down and watch this claw descend to grab details</span>
+                <span class="scroll-down-arrow">↓</span>
+            </div>
+        </section>
+
+        <!-- Feature Milestones Section (Interactive Claw Grab Stations) -->
+        <div class="stations-headline">
+            <h2>Craftsmanship You Can Touch</h2>
+            <p>The claw moves down through the page, inspecting and grabbing each bespoke detail.</p>
+        </div>
+
+        <div class="grab-cards-stream">
+
+            <!-- Station 1: The Light-Blue CoreXY Frame -->
+            <article class="station-card" id="station1" data-x-percent="28" data-drop-y="180" data-token="🛠️" data-msg="COREXY FRAME!">
+                <div class="station-content-wrap">
+                    <span class="station-pill-label">01 // KINEMATICS & FRAME</span>
+                    <h3>Pastel Light Blue CoreXY Kinematics</h3>
+                    <p>
+                        Engineered around a high-precision CoreXY belt drive painted in soft sky blue. Synchronous dual belts and silent stepper drivers deliver silky, whisper-quiet motion without the noisy rattle of commercial arcade boxes.
+                    </p>
+                    <div class="station-chips">
+                        <span class="chip">☁️ Light Blue Finish</span>
+                        <span class="chip">⚡ CoreXY Belt Drive</span>
+                        <span class="chip">🤫 Whisper Quiet</span>
+                    </div>
+                    <button class="station-action-btn" onclick="triggerClawStation('station1')">
+                        <span>🎯</span> Grab CoreXY Spec
+                    </button>
+                </div>
+
+                <div class="station-img-wrap">
+                    <img src="assets/claw_hero.jpg" alt="CoreXY Frame and Belts Detail" loading="lazy">
+                </div>
+            </article>
+
+            <!-- Station 2: The Red/Dark-Blue Claw & Cloud Bed -->
+            <article class="station-card card-reversed" id="station2" data-x-percent="72" data-drop-y="210" data-token="⭐" data-msg="CANDY RED CLAW!">
+                <div class="station-content-wrap">
+                    <span class="station-pill-label">02 // CLAW & PRIZE BED</span>
+                    <h3>Candy Red & Dark Blue Claw over Cloud Bed</h3>
+                    <p>
+                        The centerpiece is the motorized 3-finger claw in candy red with a dark navy anodized collar. Down on the prize floor, hand-finished white clouds cradle plushies, prize capsules, and celebration merchandise.
+                    </p>
+                    <div class="station-chips">
+                        <span class="chip">🔴 Candy Red & Navy</span>
+                        <span class="chip">☁️ Cloud Prize Bed</span>
+                        <span class="chip">🧸 Adjustable Grip</span>
+                    </div>
+                    <button class="station-action-btn" onclick="triggerClawStation('station2')">
+                        <span>🎯</span> Grab Star Plushie
+                    </button>
+                </div>
+
+                <div class="station-img-wrap">
+                    <img src="assets/claw_closeup.jpg" alt="Candy Red Claw Holding Star Plushie" loading="lazy">
+                </div>
+            </article>
+
+            <!-- Station 3: Exterior Mounted Glass Panels -->
+            <article class="station-card" id="station3" data-x-percent="35" data-drop-y="190" data-token="✨" data-msg="FLUSH GLASS!">
+                <div class="station-content-wrap">
+                    <span class="station-pill-label">03 // ARCHITECTURAL FIT</span>
+                    <h3>Exterior-Mounted Flush Acrylic Glass</h3>
+                    <p>
+                        Crystal-clear 4mm cast acrylic panels are cleanly mounted directly on the outside with polished chrome standoffs. Warm internal edge illumination illuminates the interior from every viewing angle.
+                    </p>
+                    <div class="station-chips">
+                        <span class="chip">🪟 Exterior Glass Mount</span>
+                        <span class="chip">✨ Warm Ambient Glow</span>
+                        <span class="chip">🎪 360° Viewing Clarity</span>
+                    </div>
+                    <button class="station-action-btn" onclick="triggerClawStation('station3')">
+                        <span>🎯</span> Inspect Glass Detail
+                    </button>
+                </div>
+
+                <div class="station-img-wrap">
+                    <img src="assets/claw_showcase.jpg" alt="Exterior Glass Mounted in Showcase Setting" loading="lazy">
+                </div>
+            </article>
+
+        </div>
+
+        <!-- Craftsmanship Highlights -->
+        <section class="craft-highlights">
+            <div class="craft-highlights-grid">
+                <div class="craft-item">
+                    <div class="craft-icon">⚡</div>
+                    <h4>Plug & Play</h4>
+                    <p>Standard household wall plug. Lightweight and portable for weddings, popups, and luxury game rooms.</p>
+                </div>
+                <div class="craft-item">
+                    <div class="craft-icon">📱</div>
+                    <h4>Smart Control</h4>
+                    <p>Adjust game duration, payout win rates, and LED lighting themes directly from your smartphone or tablet.</p>
+                </div>
+                <div class="craft-item">
+                    <div class="craft-icon">🎨</div>
+                    <h4>Bespoke Finishes</h4>
+                    <p>Custom marquee lettering, tailored frame colors, and themed prize sets available for custom commissions.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Buyer Commission Section -->
+        <section class="commission-section" id="inquire">
+            <span class="handwritten-badge" style="font-size: 1.45rem;">Custom commissions & event rentals ✨</span>
+            <h3>Bring This Magic to Your Space</h3>
+            <p>
+                Every machine is handcrafted with passion in our workshop. Whether for a luxury home game room, boutique event activation, or unique gift, we build to order.
+            </p>
+            <div class="commission-btns-wrap">
+                <button class="pill-btn accent-red" style="padding: 12px 28px; font-size: 0.95rem;" onclick="openModal()">
+                    <span>📩</span> Inquire for Build or Rental
+                </button>
+                <button class="pill-btn" style="padding: 12px 22px; font-size: 0.9rem;" onclick="triggerClawStation('station2')">
+                    <span>🎮</span> Watch Claw Grab
+                </button>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Inquiry Modal -->
+    <div class="inquiry-modal-wrap" id="inquiryModal">
+        <div class="inquiry-dialog">
+            <button class="close-dialog-btn" onclick="closeModal()">✕</button>
+            <h3 style="font-family: 'Outfit', sans-serif; font-size: 1.4rem; font-weight: 800; color: #0f172a; margin-bottom: 6px;">
+                Custom Claw Machine Inquiry
+            </h3>
+            <p style="font-size: 0.85rem; color: #64748b;">
+                Share your space, event date, or custom color preferences with us.
+            </p>
+
+            <form onsubmit="handleInquirySubmit(event)">
+                <div class="input-group">
+                    <label>Name</label>
+                    <input type="text" class="custom-input" placeholder="Your Name" required>
+                </div>
+                <div class="input-group">
+                    <label>Email</label>
+                    <input type="email" class="custom-input" placeholder="your.email@example.com" required>
+                </div>
+                <div class="input-group">
+                    <label>Inquiry Type</label>
+                    <select class="custom-input" style="background: white;">
+                        <option>Custom Build (Purchase for Home / Business)</option>
+                        <option>Event Rental (Wedding / Corporate Activation)</option>
+                        <option>Boutique Display / Press Collaboration</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>Message / Location</label>
+                    <textarea class="custom-input" rows="3" placeholder="Tell us about your event date, theme, or delivery requirements..."></textarea>
+                </div>
+                <button type="submit" class="pill-btn accent-red" style="margin-top: 18px; width: 100%; justify-content: center; padding: 12px;">
+                    Send Inquiry
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Scripts: Audio, High-End Scroll Tracking & Real Photorealistic Claw Animation -->
+    <script>
+        // ==========================================
+        // 1. Audio System (Synthetic Web Audio)
+        // ==========================================
+        class ClawAudio {
+            constructor() {
+                this.enabled = true;
+                this.ctx = null;
+            }
+
+            getContext() {
+                if (!this.ctx) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    if (AudioCtx) this.ctx = new AudioCtx();
+                }
+                if (this.ctx && this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+                return this.ctx;
+            }
+
+            playGrab() {
+                if (!this.enabled) return;
+                try {
+                    const ctx = this.getContext();
+                    if (!ctx) return;
+                    const now = ctx.currentTime;
+
+                    // Clank / mechanical grip
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(320, now);
+                    osc.frequency.exponentialRampToValueAtTime(740, now + 0.12);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+                    osc.start(now);
+                    osc.stop(now + 0.25);
+
+                    // Chime tone
+                    setTimeout(() => {
+                        const chime = ctx.createOscillator();
+                        const cGain = ctx.createGain();
+                        chime.connect(cGain);
+                        cGain.connect(ctx.destination);
+                        chime.type = 'sine';
+                        chime.frequency.setValueAtTime(1046.5, ctx.currentTime);
+                        cGain.gain.setValueAtTime(0.15, ctx.currentTime);
+                        cGain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+                        chime.start();
+                        chime.stop(ctx.currentTime + 0.3);
+                    }, 110);
+                } catch (e) {}
+            }
+        }
+
+        const clawAudio = new ClawAudio();
+        const btnAudioToggle = document.getElementById('btnAudioToggle');
+        btnAudioToggle.addEventListener('click', () => {
+            clawAudio.enabled = !clawAudio.enabled;
+            btnAudioToggle.innerHTML = clawAudio.enabled ? '<span>🔊</span> Sound' : '<span>🔇</span> Muted';
+        });
+
+        // ==========================================
+        // 2. High-End Scroll Tracking & Real Claw Animation
+        // ==========================================
+        const realClawRig = document.getElementById('realClawRig');
+        const cableCollar = document.getElementById('cableCollar');
+        const cableLine = document.getElementById('cableLine');
+        const clawBubble = document.getElementById('clawBubble');
+        const clawItem = document.getElementById('clawItem');
+        const stations = document.querySelectorAll('.station-card');
+
+        let isManualOverride = false;
+        let lastActiveStation = null;
+
+        // Smooth physics state
+        let targetX = 50;
+        let currentX = 50;
+        let targetDrop = 60; // cable height in px
+        let currentDrop = 60;
+
+        function updateClawScroll() {
+            if (isManualOverride) return;
+
+            const scrollY = window.scrollY || window.pageYOffset;
+            const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+            const scrollPercent = Math.min(1, Math.max(0, scrollY / (docHeight || 1)));
+
+            // When user is at the very top of the page (hero photo view)
+            if (scrollY < 180) {
+                targetX = 50;
+                targetDrop = 60; // sits at the top of the hero
+                stations.forEach(s => s.classList.remove('claw-grabbing-now'));
+                lastActiveStation = null;
+                releaseGrip();
+                renderClaw();
+                return;
+            }
+
+            // Check if any station card is currently focused in viewport
+            let currentStation = null;
+            stations.forEach(card => {
+                const rect = card.getBoundingClientRect();
+                const cardCenter = rect.top + rect.height / 2;
+                if (cardCenter > window.innerHeight * 0.22 && cardCenter < window.innerHeight * 0.72) {
+                    currentStation = card;
+                }
+            });
+
+            if (currentStation) {
+                targetX = parseFloat(currentStation.dataset.xPercent) || 50;
+                targetDrop = parseFloat(currentStation.dataset.dropY) || 190;
+                const token = currentStation.dataset.token || '⭐';
+                const msg = currentStation.dataset.msg || 'GRABBED!';
+
+                stations.forEach(s => s.classList.remove('claw-grabbing-now'));
+                currentStation.classList.add('claw-grabbing-now');
+
+                if (lastActiveStation !== currentStation) {
+                    lastActiveStation = currentStation;
+                    triggerGrip(token, msg);
+                }
+            } else {
+                // Free travel between sections: natural sine wandering along the gantry
+                targetX = 35 + Math.sin(scrollPercent * Math.PI * 3.5) * 30;
+                targetDrop = 90 + Math.sin(scrollPercent * Math.PI * 4) * 25;
+
+                stations.forEach(s => s.classList.remove('claw-grabbing-now'));
+                lastActiveStation = null;
+                releaseGrip();
+            }
+
+            renderClaw();
+        }
+
+        function renderClaw() {
+            // Smooth lerp interpolation
+            currentX += (targetX - currentX) * 0.14;
+            currentDrop += (targetDrop - currentDrop) * 0.14;
+
+            cableCollar.style.left = `${currentX}%`;
+            cableLine.style.left = `${currentX}%`;
+            cableLine.style.height = `${currentDrop}px`;
+
+            realClawRig.style.left = `${currentX}%`;
+            realClawRig.style.top = `${currentDrop}px`;
+        }
+
+        function triggerGrip(token, msg) {
+            clawItem.textContent = token;
+            clawBubble.textContent = msg;
+
+            realClawRig.classList.add('grabbing', 'has-item', 'show-bubble');
+            clawAudio.playGrab();
+        }
+
+        function releaseGrip() {
+            realClawRig.classList.remove('grabbing', 'has-item', 'show-bubble');
+        }
+
+        // Interactive Click on Station Cards
+        window.triggerClawStation = function(stationId) {
+            const station = document.getElementById(stationId);
+            if (!station) return;
+
+            isManualOverride = true;
+            station.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+            targetX = parseFloat(station.dataset.xPercent) || 50;
+            targetDrop = parseFloat(station.dataset.dropY) || 200;
+            const token = station.dataset.token || '⭐';
+            const msg = station.dataset.msg || 'GRABBED!';
+
+            stations.forEach(s => s.classList.remove('claw-grabbing-now'));
+            station.classList.add('claw-grabbing-now');
+
+            // Plunge down and squeeze
+            setTimeout(() => {
+                targetDrop += 35;
+                renderClaw();
+                setTimeout(() => {
+                    triggerGrip(token, msg);
+                    targetDrop -= 25; // spring pull-up bounce
+                    renderClaw();
+                    setTimeout(() => {
+                        isManualOverride = false;
+                    }, 1200);
+                }, 220);
+            }, 350);
+        };
+
+        // Click claw itself for a playful grab
+        realClawRig.addEventListener('click', () => {
+            const surprises = ['⭐', '🧸', '☁️', '🎉', '🎁'];
+            const randomItem = surprises[Math.floor(Math.random() * surprises.length)];
+            triggerGrip(randomItem, 'CATCH!');
+            targetDrop += 30;
+            renderClaw();
+            setTimeout(() => {
+                targetDrop -= 30;
+                renderClaw();
+                setTimeout(() => releaseGrip(), 1200);
+            }, 250);
+        });
+
+        // Loop animation frame for physics
+        function animationLoop() {
+            updateClawScroll();
+            requestAnimationFrame(animationLoop);
+        }
+        requestAnimationFrame(animationLoop);
+
+        // ==========================================
+        // 3. Floating Clouds Background Generator
+        // ==========================================
+        function isMobile() {
+            return window.innerWidth < 768;
+        }
+
+        function pickCloudDepth() {
+            const r = Math.random();
+            if (r < 0.55) return 0;
+            if (r < 0.85) return 1;
+            return 2;
+        }
+
+        function createCloud(container, preheat = false) {
+            const cloudImages = ['assets/cloud01.webp', 'assets/cloud02.webp', 'assets/cloud03.webp'];
+            const wrapper = document.createElement('div');
+            wrapper.className = 'cloud-wrapper';
+            const cloud = document.createElement('div');
+            cloud.className = 'cloud';
+
+            const img = cloudImages[Math.floor(Math.random() * cloudImages.length)];
+            const depth = pickCloudDepth();
+
+            let scale, duration, opacity;
+            if (depth === 0) {
+                scale = 0.65 + Math.random() * 0.45;
+                duration = 160 + Math.random() * 40;
+                opacity = 0.25 + Math.random() * 0.1;
+            } else if (depth === 1) {
+                scale = 1.3 + Math.random() * 0.7;
+                duration = 95 + Math.random() * 30;
+                opacity = 0.5 + Math.random() * 0.15;
+            } else {
+                scale = 2.4 + Math.random() * 1.3;
+                duration = 65 + Math.random() * 25;
+                opacity = 0.75 + Math.random() * 0.15;
+            }
+
+            if (isMobile()) duration *= 0.45;
+
+            const skyHeight = container.getBoundingClientRect().height || window.innerHeight;
+            const top = Math.random() * skyHeight;
+
+            wrapper.style.top = `${top}px`;
+            wrapper.dataset.depth = depth;
+
+            let animationDelay = 0;
+            if (preheat) animationDelay = -(Math.random() * duration);
+
+            const scaleX = Math.random() > 0.5 ? 1 : -1;
+
+            cloud.style.cssText = `
+                background-image: url(${img});
+                width: ${280 * scale}px;
+                height: ${150 * scale}px;
+                opacity: ${opacity};
+                --cloud-scale-x: ${scaleX};
+                animation: cloudFly ${duration}s ease-in-out forwards;
+                animation-delay: ${animationDelay}s;
+            `;
+
+            wrapper.appendChild(cloud);
+            container.appendChild(wrapper);
+
+            const removeAfter = (duration + Math.abs(animationDelay)) * 1000 + 500;
+            setTimeout(() => wrapper.remove(), removeAfter);
+        }
+
+        function spawnClouds(container) {
+            const skyH = container.getBoundingClientRect().height || window.innerHeight;
+            const initialClouds = Math.min(130, Math.max(30, Math.round(skyH / 32)));
+            for (let i = 0; i < initialClouds; i++) {
+                createCloud(container, true);
+            }
+
+            function scheduleNextCloud() {
+                const delay = 750 + Math.random() * 1100;
+                setTimeout(() => {
+                    createCloud(container, false);
+                    scheduleNextCloud();
+                }, delay);
+            }
+            scheduleNextCloud();
+        }
+
+        const skyContainer = document.getElementById('skyContainer');
+        if (skyContainer) {
+            spawnClouds(skyContainer);
+        }
+
+        // ==========================================
+        // 4. Modal Handlers
+        // ==========================================
+        const inquiryModal = document.getElementById('inquiryModal');
+
+        window.openModal = function() {
+            inquiryModal.classList.add('open');
+        };
+
+        window.closeModal = function() {
+            inquiryModal.classList.remove('open');
+        };
+
+        inquiryModal.addEventListener('click', (e) => {
+            if (e.target === inquiryModal) closeModal();
+        });
+
+        window.handleInquirySubmit = function(e) {
+            e.preventDefault();
+            alert('✨ Thank you for your inquiry! We will get in touch with you shortly.');
+            closeModal();
+        };
+    </script>
+</body>
+</html>

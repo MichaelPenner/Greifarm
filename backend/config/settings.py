@@ -20,6 +20,15 @@ class Settings(BaseSettings):
     esp_ws_path: str = "/ws"
     esp_reconnect_interval: float = 3.0
 
+    # Physical Machine Tuning (Passed from HA Addon Config)
+    steps_per_mm_xy: float = 640.0
+    steps_per_mm_z: float = 50.0
+    max_speed_xy: float = 150.0
+    max_speed_z: float = 50.0
+    max_mm_x: float = 220.0
+    max_mm_y: float = 220.0
+    max_mm_z: float = 200.0
+
     # Database
     db_path: str = str(Path(__file__).parent.parent / "data" / "clawmachine.db")
 
