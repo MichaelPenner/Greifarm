@@ -4,64 +4,89 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🎪 The CloudCatcher — Bespoke CoreXY Claw Machine</title>
-    <meta name="description" content="Handmade custom claw machine featuring a light blue CoreXY frame, white cloud bed, and red & dark-blue precision claw.">
-    
+    <meta name="description" content="Handcrafted arcade claw machine with light blue CoreXY frame, white cloud prize bed, and red & dark-blue precision claw.">
+
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/design-system.css">
 
     <style>
+        /* ===========================================================
+           DESIGN TOKENS
+           =========================================================== */
         :root {
-            --color-sky-bottom: #cbe3f0;
-            --color-sky-top: #ffffff;
-            --color-machine-blue: #7bb5e8;
-            --color-claw-red: #e11d48;
-            --color-claw-darkblue: #1e3a5f;
-            --color-cream-bg: rgba(255, 255, 255, 0.88);
-            --color-text-dark: #0f172a;
-            --color-text-soft: #475569;
-            --glass-card-shadow: 0 24px 60px -15px rgba(59, 130, 246, 0.16), 0 8px 24px -6px rgba(0, 0, 0, 0.06);
+            --sky-top: #ffffff;
+            --sky-mid: #dfeefb;
+            --sky-bottom: #b8d8f0;
+            --machine-blue: #7bb5e8;
+            --claw-red: #e11d48;
+            --claw-navy: #1e3a5f;
+            --accent-amber: #f59e0b;
+            --glass-bg: rgba(255,255,255,0.92);
+            --glass-border: rgba(255,255,255,0.96);
+            --glass-shadow: 0 32px 80px -20px rgba(15,23,42,0.22), 0 8px 24px -6px rgba(0,0,0,0.08);
+            --text-dark: #0f172a;
+            --text-body: #475569;
+            --text-muted: #64748b;
+            --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
         }
 
-        *, *::before, *::after {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
+        /* ===========================================================
+           RESET & BASE
+           =========================================================== */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
         html {
-            scroll-behavior: smooth;
-        }
-
-        body {
-            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-            color: var(--color-text-dark);
-            background: linear-gradient(180deg, var(--color-sky-top) 0%, #e2f0fb 35%, var(--color-sky-bottom) 100%);
-            min-height: 100vh;
+            scroll-behavior: auto; /* We control scroll manually */
             overflow-x: hidden;
-            position: relative;
             -webkit-font-smoothing: antialiased;
         }
 
-        /* === Drifting Sky Clouds Background === */
-        .sky-animations {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 0;
-            overflow: hidden;
+        body {
+            font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+            background: var(--sky-bottom);
+            color: var(--text-dark);
+            overflow-x: hidden;
         }
 
+        /* The actual scrollable document — 500vh of scroll territory for 5 sections */
+        .scroll-spacer {
+            height: 500vh;
+            position: relative;
+        }
+
+        /* ===========================================================
+           FIXED VIEWPORT STAGE — Everything visual lives here
+           =========================================================== */
+        .cinema-stage {
+            position: fixed;
+            inset: 0;
+            overflow: hidden;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        .cinema-stage * {
+            pointer-events: auto;
+        }
+
+        /* ===========================================================
+           1. SKY GRADIENT BACKGROUND (Always behind everything)
+           =========================================================== */
+        .sky-layer {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            background: linear-gradient(180deg, var(--sky-top) 0%, var(--sky-mid) 40%, var(--sky-bottom) 100%);
+            pointer-events: none;
+        }
+
+        /* Floating clouds */
         .cloud-wrapper {
             position: absolute;
             left: 0;
             will-change: transform;
-            transition: opacity 2s ease;
         }
 
         .cloud-wrapper[data-depth="0"] { z-index: 1; }
@@ -75,585 +100,691 @@
         }
 
         @keyframes cloudFly {
-            from {
-                transform: translateX(calc(-100% - 100px)) scaleX(var(--cloud-scale-x, 1));
-            }
-            to {
-                transform: translateX(calc(100vw + 200px)) scaleX(var(--cloud-scale-x, 1));
-            }
+            from { transform: translateX(calc(-100% - 100px)) scaleX(var(--cloud-scale-x, 1)); }
+            to   { transform: translateX(calc(100vw + 200px)) scaleX(var(--cloud-scale-x, 1)); }
         }
 
-        /* === The Real Mechanical Photorealistic Claw (Scroll-Driven) === */
-        .claw-cable-line {
-            position: fixed;
-            top: 0;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 3px;
-            height: 60px;
-            background: linear-gradient(180deg, #475569 0%, #94a3b8 50%, #64748b 100%);
-            box-shadow: 0 0 6px rgba(0, 0, 0, 0.25);
-            z-index: 150;
-            pointer-events: none;
-            will-change: left, height;
-            transition: left 0.1s cubic-bezier(0.16, 1, 0.3, 1), height 0.16s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-
-        /* Top Gantry Mount Collar */
-        .claw-cable-collar {
-            position: fixed;
-            top: 0;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 48px;
-            height: 14px;
-            background: linear-gradient(180deg, #1e3a5f, #0f243d);
-            border-bottom: 2px solid #38bdf8;
-            border-radius: 0 0 8px 8px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
-            z-index: 155;
-            pointer-events: none;
-            will-change: left;
-            transition: left 0.1s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-
-        /* The Moving Photorealistic Claw Itself */
-        .the-real-claw-rig {
-            position: fixed;
-            top: 60px;
-            left: 50%;
-            transform: translate(-50%, 0);
-            width: 140px;
-            height: 140px;
-            z-index: 160;
-            pointer-events: auto;
-            cursor: pointer;
-            will-change: left, top, transform;
-            transition: left 0.1s cubic-bezier(0.16, 1, 0.3, 1), top 0.16s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-            filter: drop-shadow(0 14px 20px rgba(15, 23, 42, 0.3));
-        }
-
-        .the-real-claw-rig:hover {
-            transform: translate(-50%, 0) scale(1.05);
-        }
-
-        .the-real-claw-rig img.claw-image {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-            display: block;
-            transform-origin: top center;
-            transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-        }
-
-        /* When Clamping/Grabbing */
-        .the-real-claw-rig.grabbing img.claw-image {
-            transform: scale(0.94) scaleY(1.04);
-            filter: drop-shadow(0 0 16px rgba(225, 29, 72, 0.6));
-        }
-
-        /* Item Held Inside Claw Tips */
-        .claw-captured-item {
+        /* ===========================================================
+           2. HEADER (Floats on top, fades on scroll)
+           =========================================================== */
+        .site-header {
             position: absolute;
-            bottom: -8px;
-            left: 50%;
-            transform: translateX(-50%) scale(0);
-            font-size: 2.2rem;
-            filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.3));
-            transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
-            z-index: 20;
-            pointer-events: none;
-        }
-
-        .the-real-claw-rig.has-item .claw-captured-item {
-            transform: translateX(-50%) scale(1);
-        }
-
-        /* Live Speech Bubble Floating with the Claw */
-        .claw-dialog-bubble {
-            position: absolute;
-            top: -34px;
-            left: 50%;
-            transform: translateX(-50%);
-            white-space: nowrap;
-            background: #ffffff;
-            border: 2px solid var(--color-claw-red);
-            color: var(--color-claw-red);
-            font-family: 'Outfit', sans-serif;
-            font-size: 0.78rem;
-            font-weight: 800;
-            padding: 4px 14px;
-            border-radius: 999px;
-            box-shadow: 0 8px 20px rgba(225, 29, 72, 0.25);
-            pointer-events: none;
-            opacity: 0;
-            transition: opacity 0.2s ease, transform 0.2s ease;
-        }
-
-        .claw-dialog-bubble::after {
-            content: '';
-            position: absolute;
-            bottom: -6px;
-            left: 50%;
-            transform: translateX(-50%);
-            border-width: 6px 6px 0;
-            border-style: solid;
-            border-color: #ffffff transparent;
-            display: block;
-            width: 0;
-        }
-
-        .the-real-claw-rig.show-bubble .claw-dialog-bubble {
-            opacity: 1;
-            transform: translateX(-50%) translateY(-4px);
-        }
-
-        /* === Page Layout & Main Viewport === */
-        .showcase-viewport {
-            position: relative;
-            z-index: 10;
-            max-width: 920px;
-            margin: 0 auto;
-            padding: 24px 24px 60px;
-        }
-
-        /* Header Navigation */
-        .maker-header {
+            top: 0; left: 0; right: 0;
+            z-index: 200;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            background: var(--color-cream-bg);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.95);
-            border-radius: 18px;
-            padding: 14px 24px;
-            box-shadow: var(--glass-card-shadow);
-            margin-bottom: 24px;
+            padding: 16px 28px;
+            max-width: 1100px;
+            margin: 0 auto;
+            transition: opacity 0.5s ease;
         }
 
-        .brand-zone {
+        .brand-pill {
             display: flex;
             align-items: center;
             gap: 12px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            padding: 10px 22px;
+            border-radius: 999px;
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.06);
         }
 
         .brand-icon {
-            font-size: 1.8rem;
-            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+            font-size: 1.5rem;
+            animation: float-gentle 3s infinite ease-in-out;
+        }
+
+        @keyframes float-gentle {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-3px); }
         }
 
         .brand-text h1 {
             font-family: 'Outfit', sans-serif;
-            font-size: 1.35rem;
+            font-size: 1.15rem;
             font-weight: 800;
-            letter-spacing: -0.02em;
-            color: #1e293b;
+            color: var(--text-dark);
+            letter-spacing: -0.01em;
             line-height: 1.1;
         }
 
         .brand-text p {
-            font-size: 0.74rem;
-            color: #64748b;
+            font-size: 0.68rem;
+            color: var(--text-muted);
             font-weight: 600;
             text-transform: uppercase;
-            letter-spacing: 0.05em;
+            letter-spacing: 0.06em;
         }
 
-        .nav-buttons {
+        .header-actions {
             display: flex;
-            align-items: center;
             gap: 10px;
         }
 
-        .pill-btn {
-            background: #ffffff;
-            border: 1.5px solid #e2e8f0;
-            color: #334155;
+        .btn-glass {
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1.5px solid var(--glass-border);
+            color: var(--text-dark);
             font-family: 'Outfit', sans-serif;
             font-size: 0.82rem;
             font-weight: 700;
-            padding: 7px 16px;
+            padding: 8px 18px;
             border-radius: 999px;
             cursor: pointer;
-            text-decoration: none;
             transition: all 0.2s ease;
             display: inline-flex;
             align-items: center;
             gap: 6px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
         }
 
-        .pill-btn:hover {
-            border-color: var(--color-claw-red);
-            color: var(--color-claw-red);
+        .btn-glass:hover {
+            border-color: var(--claw-red);
+            color: var(--claw-red);
             transform: translateY(-1px);
         }
 
-        .pill-btn.accent-red {
-            background: linear-gradient(135deg, var(--color-claw-red), #be123c);
+        .btn-cta {
+            background: linear-gradient(135deg, var(--claw-red), #be123c);
             color: white;
             border: none;
-            box-shadow: 0 4px 14px rgba(225, 29, 72, 0.35);
+            box-shadow: 0 4px 18px rgba(225,29,72,0.35);
         }
 
-        .pill-btn.accent-red:hover {
-            box-shadow: 0 6px 20px rgba(225, 29, 72, 0.5);
+        .btn-cta:hover {
+            box-shadow: 0 8px 28px rgba(225,29,72,0.5);
             transform: translateY(-2px);
+            color: white;
         }
 
-        /* === Giant Macro Hero Showcase === */
-        .macro-hero-card {
-            background: var(--color-cream-bg);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.95);
-            border-radius: 28px;
-            padding: 32px 32px 28px;
-            box-shadow: var(--glass-card-shadow);
-            margin-bottom: 40px;
-            position: relative;
-            text-align: center;
-        }
-
-        .hero-intro-text {
-            max-width: 680px;
-            margin: 0 auto 24px;
-        }
-
-        .handwritten-badge {
-            font-family: 'Caveat', cursive;
-            font-size: 1.6rem;
-            font-weight: 700;
-            color: var(--color-claw-red);
-            display: inline-block;
-            transform: rotate(-2deg);
-            margin-bottom: 6px;
-        }
-
-        .hero-main-title {
-            font-family: 'Outfit', sans-serif;
-            font-size: 2.6rem;
-            font-weight: 900;
-            line-height: 1.15;
-            letter-spacing: -0.03em;
-            color: #0f172a;
-            margin-bottom: 12px;
-        }
-
-        .hero-main-title span {
-            color: #0284c7;
-        }
-
-        .hero-subtitle {
-            font-size: 1.05rem;
-            color: #475569;
-            line-height: 1.55;
-        }
-
-        /* HUGE MACRO PICTURE FRAME */
-        .huge-macro-photo-frame {
-            position: relative;
-            border-radius: 24px;
-            overflow: hidden;
-            box-shadow: 0 24px 60px -12px rgba(15, 23, 42, 0.25);
-            border: 4px solid #ffffff;
-            margin-bottom: 18px;
-        }
-
-        .huge-macro-photo-frame img {
-            width: 100%;
-            height: auto;
-            display: block;
-            object-fit: cover;
-        }
-
-        /* Overlay Marker showing this is the interactive claw */
-        .claw-hero-anchor-marker {
+        /* ===========================================================
+           3. HERO BACKGROUND IMAGE (Full bleed, fades seamlessly)
+           =========================================================== */
+        .hero-image-layer {
             position: absolute;
-            top: 24px;
+            top: 0; left: 0;
+            width: 100%;
+            height: 75vh;
+            z-index: 4;
+            pointer-events: none;
+            will-change: transform, opacity;
+            mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 40%, rgba(0,0,0,0) 100%);
+            -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 40%, rgba(0,0,0,0) 100%);
+        }
+
+        .hero-image-layer img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center 30%;
+            filter: brightness(1.03) contrast(1.02) saturate(1.08);
+        }
+
+        /* ===========================================================
+           4. ROPE — Extends from top of viewport to the claw
+           =========================================================== */
+        .crane-rope {
+            position: absolute;
+            top: 0;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(255, 255, 255, 0.92);
-            backdrop-filter: blur(8px);
-            border: 1.5px solid var(--color-claw-red);
-            color: var(--color-claw-red);
-            padding: 6px 16px;
-            border-radius: 999px;
-            font-family: 'Outfit', sans-serif;
-            font-size: 0.78rem;
-            font-weight: 800;
-            letter-spacing: 0.04em;
-            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+            width: 5px;
+            z-index: 149;
+            pointer-events: none;
+            will-change: height, left;
+            background: repeating-linear-gradient(
+                45deg,
+                #334155, #334155 3px,
+                #94a3b8 3px, #cbd5e1 5px,
+                #64748b 5px, #475569 8px
+            );
+            box-shadow: 0 0 10px rgba(0,0,0,0.3);
+        }
+
+        .crane-rope::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 14px;
+            height: 10px;
+            background: var(--claw-navy);
+            border-radius: 4px;
+            border: 1px solid #94a3b8;
+        }
+
+        /* ===========================================================
+           5. THE CLAW — Large, cinematic, scroll-driven
+           =========================================================== */
+        .the-claw {
+            position: absolute;
+            left: 50%;
+            top: 80px;
+            transform: translate(-50%, 0);
+            width: 280px;
+            height: 280px;
+            z-index: 150;
+            pointer-events: none;
+            will-change: transform, top, left, filter;
+            filter: drop-shadow(0 24px 40px rgba(15,23,42,0.4));
+            transition: filter 0.3s ease;
+        }
+
+        .the-claw img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            transform-origin: top center;
+            will-change: transform;
+            transition: transform 0.35s var(--ease-out-expo);
+        }
+
+        .the-claw.gripping img {
+            transform: scale(0.90, 1.10);
+            filter: drop-shadow(0 0 30px rgba(225,29,72,0.7));
+            animation: squeeze 0.4s ease-out;
+        }
+
+        @keyframes squeeze {
+            0% { transform: scale(1, 1); }
+            30% { transform: scale(0.85, 1.15); }
+            60% { transform: scale(0.92, 1.08); }
+            100% { transform: scale(0.90, 1.10); }
+        }
+
+        /* ===========================================================
+           6. SCROLL STORY SECTIONS — Full-screen cinematic panels
+           =========================================================== */
+        .story-section {
+            position: absolute;
+            inset: 0;
             display: flex;
             align-items: center;
-            gap: 6px;
-            animation: pulse-badge 2s infinite ease-in-out;
+            justify-content: center;
+            z-index: 100;
+            opacity: 0;
+            /* Default hidden state: card waiting below, slightly tilted */
+            transform: translateY(100px) rotate(-4deg) scale(0.88);
             pointer-events: none;
+            padding: 20px;
+            /* No transition here — throw animation is via JS-added class */
         }
 
-        @keyframes pulse-badge {
-            0%, 100% { transform: translateX(-50%) scale(1); }
-            50% { transform: translateX(-50%) scale(1.04); }
+        /* THROW: Card gets flung in by the claw (overshoot + settle) */
+        .story-section.active {
+            opacity: 1;
+            transform: translateY(0) rotate(0deg) scale(1);
+            pointer-events: auto;
+            animation: card-throw-in 0.65s var(--ease-out-expo) forwards;
         }
 
-        /* Scroll Invitation */
-        .scroll-nudge {
+        @keyframes card-throw-in {
+            0%   { opacity: 0;   transform: translateY(90px) rotate(-5deg) scale(0.88); }
+            40%  { opacity: 1;   transform: translateY(-18px) rotate(2.5deg) scale(1.03); }
+            65%  { opacity: 1;   transform: translateY(8px) rotate(-1deg) scale(0.99); }
+            82%  { opacity: 1;   transform: translateY(-4px) rotate(0.5deg) scale(1.005); }
+            100% { opacity: 1;   transform: translateY(0) rotate(0deg) scale(1); }
+        }
+
+        .story-section.exiting-up {
+            opacity: 0;
+            transform: translateY(-90px) rotate(3deg) scale(0.92);
+            transition: opacity 0.4s ease, transform 0.4s ease;
+        }
+
+        /* ---- Section 0: HERO INTRO ---- */
+        .hero-content {
+            text-align: center;
+            max-width: 680px;
+            margin-top: 10vh;
+        }
+
+        .hero-handwritten {
+            font-family: 'Caveat', cursive;
+            font-size: 1.85rem;
+            font-weight: 700;
+            color: var(--claw-red);
+            margin-bottom: 6px;
+            opacity: 0;
+            transform: translateY(20px);
+            animation: fadeSlideIn 0.8s 0.3s forwards var(--ease-out-expo);
+        }
+
+        .hero-headline {
+            font-family: 'Outfit', sans-serif;
+            font-size: clamp(2rem, 5vw, 3.2rem);
+            font-weight: 900;
+            line-height: 1.1;
+            letter-spacing: -0.03em;
+            color: var(--text-dark);
+            margin-bottom: 14px;
+            opacity: 0;
+            transform: translateY(20px);
+            animation: fadeSlideIn 0.8s 0.5s forwards var(--ease-out-expo);
+        }
+
+        .hero-headline .accent { color: #0284c7; }
+
+        .hero-sub {
+            font-size: 1.05rem;
+            color: var(--text-body);
+            line-height: 1.6;
+            margin-bottom: 28px;
+            max-width: 560px;
+            margin-left: auto;
+            margin-right: auto;
+            opacity: 0;
+            transform: translateY(20px);
+            animation: fadeSlideIn 0.8s 0.7s forwards var(--ease-out-expo);
+        }
+
+        .scroll-cue {
             display: inline-flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
+            padding: 12px 28px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            border: 1.5px solid rgba(225,29,72,0.3);
+            border-radius: 999px;
             font-family: 'Outfit', sans-serif;
-            font-size: 0.88rem;
+            font-size: 0.9rem;
             font-weight: 700;
-            color: var(--color-claw-red);
-            margin-top: 10px;
+            color: var(--claw-red);
+            cursor: pointer;
+            box-shadow: 0 4px 20px rgba(225,29,72,0.15);
+            transition: all 0.25s ease;
+            opacity: 0;
+            transform: translateY(20px);
+            animation: fadeSlideIn 0.8s 0.9s forwards var(--ease-out-expo);
         }
 
-        .scroll-down-arrow {
-            animation: bounce-arrow 1.2s infinite ease-in-out;
+        .scroll-cue:hover {
+            border-color: var(--claw-red);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(225,29,72,0.25);
         }
 
-        @keyframes bounce-arrow {
+        .scroll-cue .arrow {
+            animation: bounce-down 1.4s infinite ease-in-out;
+            font-size: 1.2rem;
+        }
+
+        @keyframes bounce-down {
             0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(5px); }
+            50% { transform: translateY(6px); }
         }
 
-        /* === Grab Stations (Scroll Milestones) === */
-        .stations-headline {
-            text-align: center;
-            margin-bottom: 30px;
+        @keyframes fadeSlideIn {
+            to { opacity: 1; transform: translateY(0); }
         }
 
-        .stations-headline h2 {
-            font-family: 'Outfit', sans-serif;
-            font-size: 2rem;
-            font-weight: 800;
-            color: #0f172a;
-            letter-spacing: -0.02em;
+        /* ---- Feature Story Cards (Sections 1-3) ---- */
+        .story-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 2px solid var(--glass-border);
+            border-radius: 28px;
+            box-shadow: var(--glass-shadow);
+            max-width: 840px;
+            width: 100%;
+            overflow: hidden;
+            position: relative;
         }
 
-        .stations-headline p {
-            font-size: 0.92rem;
-            color: #64748b;
-            margin-top: 4px;
+        /* Glowing top edge when claw is gripping */
+        .story-card::before {
+            content: '';
+            position: absolute;
+            top: -2px; left: 10%; right: 10%;
+            height: 4px;
+            background: linear-gradient(90deg, transparent, var(--claw-red), transparent);
+            border-radius: 0 0 4px 4px;
+            opacity: 0;
+            transition: opacity 0.4s ease;
         }
 
-        .grab-cards-stream {
+        .story-card.claw-attached::before {
+            opacity: 1;
+            animation: glow-pulse 2s infinite ease-in-out;
+        }
+
+        @keyframes glow-pulse {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
+        }
+
+        .card-bracket {
             display: flex;
-            flex-direction: column;
-            gap: 40px;
-            margin-bottom: 48px;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            padding: 10px 0;
+            background: linear-gradient(180deg, #f8fafc, #f1f5f9);
+            border-bottom: 1px solid #e2e8f0;
+            transition: all 0.3s ease;
         }
 
-        /* Milestone Card */
-        .station-card {
-            background: var(--color-cream-bg);
-            backdrop-filter: blur(20px);
-            border: 2px solid rgba(255, 255, 255, 0.95);
-            border-radius: 26px;
-            padding: 30px;
-            box-shadow: var(--glass-card-shadow);
+        .story-card.claw-attached .card-bracket {
+            background: linear-gradient(180deg, #fff1f2, #ffe4e6);
+            border-color: rgba(225,29,72,0.2);
+        }
+
+        .bracket-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #94a3b8;
+            box-shadow: inset 0 1px 2px rgba(0,0,0,0.3);
+            transition: background 0.3s ease;
+        }
+
+        .story-card.claw-attached .bracket-dot {
+            background: var(--claw-red);
+        }
+
+        .bracket-label {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.7rem;
+            font-weight: 800;
+            color: var(--text-muted);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            transition: color 0.3s ease;
+        }
+
+        .story-card.claw-attached .bracket-label {
+            color: var(--claw-red);
+        }
+
+        .card-body {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 28px;
+            padding: 28px 32px;
             align-items: center;
-            position: relative;
-            transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
-        .station-card.card-reversed {
-            grid-template-columns: 1fr 1fr;
+        .card-body.reversed {
+            direction: rtl;
         }
 
-        .station-card.card-reversed .station-img-wrap {
-            order: 1;
+        .card-body.reversed > * {
+            direction: ltr;
         }
 
-        .station-card.card-reversed .station-content-wrap {
-            order: 2;
+        .card-image {
+            border-radius: 18px;
+            overflow: hidden;
+            border: 3px solid #ffffff;
+            box-shadow: 0 12px 30px -8px rgba(0,0,0,0.18);
+            aspect-ratio: 4/3;
         }
 
-        /* CLAW GRABBING ACTIVE STATE */
-        .station-card.claw-grabbing-now {
-            border-color: var(--color-claw-red);
-            box-shadow: 0 0 0 3px rgba(225, 29, 72, 0.3), var(--glass-card-shadow);
-            transform: translateY(-4px);
+        .card-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            transition: transform 0.6s var(--ease-out-expo);
         }
 
-        .station-pill-label {
+        .story-card:hover .card-image img {
+            transform: scale(1.04);
+        }
+
+        .card-text {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .pill {
             display: inline-flex;
             align-items: center;
             gap: 6px;
             background: #e0f2fe;
             color: #0369a1;
             font-family: 'Outfit', sans-serif;
-            font-size: 0.74rem;
+            font-size: 0.72rem;
             font-weight: 800;
-            padding: 4px 12px;
+            padding: 5px 14px;
             border-radius: 999px;
-            margin-bottom: 12px;
             letter-spacing: 0.04em;
+            width: fit-content;
+            transition: all 0.3s ease;
         }
 
-        .station-card.claw-grabbing-now .station-pill-label {
+        .story-card.claw-attached .pill {
             background: #ffe4e6;
-            color: #e11d48;
+            color: var(--claw-red);
         }
 
-        .station-content-wrap h3 {
+        .card-text h3 {
             font-family: 'Outfit', sans-serif;
-            font-size: 1.65rem;
+            font-size: 1.5rem;
             font-weight: 800;
             letter-spacing: -0.02em;
-            color: #0f172a;
-            margin-bottom: 10px;
+            color: var(--text-dark);
             line-height: 1.2;
         }
 
-        .station-content-wrap p {
-            font-size: 0.95rem;
-            color: #475569;
-            line-height: 1.6;
-            margin-bottom: 18px;
+        .card-text p {
+            font-size: 0.92rem;
+            color: var(--text-body);
+            line-height: 1.55;
         }
 
-        .station-chips {
+        .chips {
             display: flex;
             flex-wrap: wrap;
-            gap: 8px;
-            margin-bottom: 20px;
+            gap: 6px;
+            margin-top: 4px;
         }
 
         .chip {
             background: #ffffff;
             border: 1px solid #e2e8f0;
-            border-radius: 10px;
-            padding: 6px 14px;
-            font-size: 0.8rem;
+            border-radius: 8px;
+            padding: 4px 10px;
+            font-size: 0.74rem;
             font-weight: 700;
             color: #334155;
             display: inline-flex;
             align-items: center;
-            gap: 6px;
+            gap: 5px;
         }
 
-        .station-action-btn {
-            background: #ffffff;
-            border: 1.5px solid #cbd5e1;
-            color: #334155;
-            font-family: 'Outfit', sans-serif;
-            font-size: 0.84rem;
-            font-weight: 700;
-            padding: 8px 20px;
-            border-radius: 999px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .station-action-btn:hover,
-        .station-card.claw-grabbing-now .station-action-btn {
-            background: var(--color-claw-red);
-            border-color: var(--color-claw-red);
-            color: #ffffff;
-            box-shadow: 0 4px 14px rgba(225, 29, 72, 0.4);
-        }
-
-        .station-img-wrap {
-            border-radius: 20px;
-            overflow: hidden;
-            border: 3px solid #ffffff;
-            box-shadow: 0 12px 30px -8px rgba(0, 0, 0, 0.12);
-        }
-
-        .station-img-wrap img {
-            width: 100%;
-            height: auto;
-            display: block;
-            object-fit: cover;
-            transition: transform 0.4s ease;
-        }
-
-        .station-card:hover .station-img-wrap img {
-            transform: scale(1.03);
-        }
-
-        /* === Craftsmanship Story Strip === */
-        .craft-highlights {
-            background: linear-gradient(135deg, #7bb5e8 0%, #5a9bd6 100%);
-            border-radius: 24px;
-            padding: 32px 28px;
-            color: white;
-            box-shadow: 0 20px 45px -10px rgba(90, 155, 214, 0.4);
-            margin-bottom: 40px;
-        }
-
-        .craft-highlights-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 24px;
+        /* ---- Section 4: CTA Finale ---- */
+        .finale-content {
             text-align: center;
+            max-width: 620px;
         }
 
-        .craft-icon {
-            font-size: 2.2rem;
+        .finale-handwritten {
+            font-family: 'Caveat', cursive;
+            font-size: 1.7rem;
+            font-weight: 700;
+            color: var(--claw-red);
             margin-bottom: 8px;
         }
 
-        .craft-highlights-grid h4 {
+        .finale-headline {
             font-family: 'Outfit', sans-serif;
-            font-size: 1.15rem;
-            font-weight: 800;
-            margin-bottom: 6px;
-        }
-
-        .craft-highlights-grid p {
-            font-size: 0.86rem;
-            color: #e0f2fe;
-            line-height: 1.45;
-        }
-
-        /* === Buyer Commission Call To Action === */
-        .commission-section {
-            background: var(--color-cream-bg);
-            backdrop-filter: blur(20px);
-            border: 2px solid rgba(255, 255, 255, 0.95);
-            border-radius: 28px;
-            padding: 38px 32px;
-            box-shadow: var(--glass-card-shadow);
-            text-align: center;
-        }
-
-        .commission-section h3 {
-            font-family: 'Outfit', sans-serif;
-            font-size: 2.1rem;
-            font-weight: 800;
+            font-size: clamp(1.8rem, 4vw, 2.6rem);
+            font-weight: 900;
+            line-height: 1.12;
             letter-spacing: -0.02em;
-            color: #0f172a;
-            margin-bottom: 10px;
+            color: var(--text-dark);
+            margin-bottom: 12px;
         }
 
-        .commission-section p {
-            font-size: 0.98rem;
-            color: #475569;
-            max-width: 580px;
-            margin: 0 auto 24px;
-            line-height: 1.55;
+        .finale-sub {
+            font-size: 1rem;
+            color: var(--text-body);
+            line-height: 1.6;
+            margin-bottom: 28px;
         }
 
-        .commission-btns-wrap {
+        .finale-btns {
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 16px;
+            gap: 14px;
             flex-wrap: wrap;
         }
 
-        /* Inquiry Modal Backdrop */
-        .inquiry-modal-wrap {
+        .btn-large {
+            padding: 14px 32px;
+            font-size: 0.95rem;
+        }
+
+        /* ===========================================================
+           7. SCROLL PROGRESS BAR
+           =========================================================== */
+        .scroll-progress {
+            position: absolute;
+            right: 24px;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 300;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .progress-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: rgba(148,163,184,0.5);
+            border: 2px solid #ffffff;
+            cursor: pointer;
+            transition: all 0.3s var(--ease-out-expo);
+            position: relative;
+        }
+
+        .progress-dot.active {
+            background: var(--claw-red);
+            transform: scale(1.5);
+            box-shadow: 0 0 14px rgba(225,29,72,0.5);
+        }
+
+        .progress-dot::after {
+            content: attr(data-label);
+            position: absolute;
+            right: 22px;
+            top: 50%;
+            transform: translateY(-50%);
+            white-space: nowrap;
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            pointer-events: none;
+            background: var(--glass-bg);
+            padding: 4px 10px;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .progress-dot:hover::after {
+            opacity: 1;
+        }
+
+        /* Connecting line between dots */
+        .progress-track {
+            width: 2px;
+            height: 0%;
+            background: var(--claw-red);
+            position: absolute;
+            top: 6px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: -1;
+            transition: height 0.5s var(--ease-out-expo);
+        }
+
+        .progress-track-bg {
+            width: 2px;
+            height: calc(100% - 12px);
+            background: rgba(148,163,184,0.3);
+            position: absolute;
+            top: 6px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: -2;
+        }
+
+        /* ===========================================================
+           8. CINEMATIC OVERLAYS (Vignette, depth cues)
+           =========================================================== */
+        .vignette {
+            position: absolute;
+            inset: 0;
+            z-index: 5;
+            pointer-events: none;
+            background: radial-gradient(ellipse at center, transparent 50%, rgba(15,23,42,0.06) 100%);
+        }
+
+        /* Depth-of-field blur zones that intensify on scroll */
+        .depth-blur-top {
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 60px;
+            z-index: 148;
+            pointer-events: none;
+            background: linear-gradient(to bottom, rgba(255,255,255,0.7), transparent);
+            backdrop-filter: blur(2px);
+        }
+
+        /* ===========================================================
+           9. PARTICLES (Floating dust motes / sparkles)
+           =========================================================== */
+        .particle-layer {
+            position: absolute;
+            inset: 0;
+            z-index: 6;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: rgba(255,255,255,0.8);
+            border-radius: 50%;
+            animation: drift-particle linear infinite;
+            will-change: transform;
+        }
+
+        @keyframes drift-particle {
+            0% { transform: translate(0, 0) scale(1); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translate(var(--px-dx), var(--px-dy)) scale(0.3); opacity: 0; }
+        }
+
+        /* ===========================================================
+           10. INQUIRY MODAL
+           =========================================================== */
+        .modal-overlay {
             position: fixed;
             inset: 0;
-            background: rgba(15, 23, 42, 0.65);
-            backdrop-filter: blur(6px);
+            background: rgba(15,23,42,0.65);
+            backdrop-filter: blur(8px);
             z-index: 500;
             display: flex;
             align-items: center;
@@ -664,45 +795,43 @@
             transition: opacity 0.25s ease;
         }
 
-        .inquiry-modal-wrap.open {
+        .modal-overlay.open {
             opacity: 1;
             pointer-events: auto;
         }
 
-        .inquiry-dialog {
+        .modal-box {
             background: #ffffff;
             border-radius: 24px;
             max-width: 480px;
             width: 100%;
             padding: 32px;
-            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.25);
+            box-shadow: 0 24px 60px rgba(0,0,0,0.25);
             position: relative;
             transform: scale(0.92);
-            transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            transition: transform 0.25s var(--ease-out-expo);
         }
 
-        .inquiry-modal-wrap.open .inquiry-dialog {
+        .modal-overlay.open .modal-box {
             transform: scale(1);
         }
 
-        .close-dialog-btn {
+        .modal-close {
             position: absolute;
-            top: 18px;
-            right: 18px;
+            top: 18px; right: 18px;
             background: #f1f5f9;
             border: none;
             border-radius: 50%;
-            width: 34px;
-            height: 34px;
+            width: 34px; height: 34px;
             font-size: 1.1rem;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            color: #64748b;
+            color: var(--text-muted);
         }
 
-        .input-group {
+        .form-group {
             margin-top: 14px;
             display: flex;
             flex-direction: column;
@@ -710,7 +839,7 @@
             text-align: left;
         }
 
-        .input-group label {
+        .form-group label {
             font-size: 0.78rem;
             font-weight: 700;
             color: #334155;
@@ -718,7 +847,7 @@
             letter-spacing: 0.04em;
         }
 
-        .custom-input {
+        .form-input {
             width: 100%;
             padding: 11px 14px;
             border-radius: 12px;
@@ -727,605 +856,626 @@
             font-size: 0.9rem;
         }
 
-        .custom-input:focus {
+        .form-input:focus {
             outline: none;
-            border-color: var(--color-claw-red);
-            box-shadow: 0 0 0 3px rgba(225, 29, 72, 0.15);
+            border-color: var(--claw-red);
+            box-shadow: 0 0 0 3px rgba(225,29,72,0.15);
         }
 
-        /* Responsive Breakpoints */
+        /* ===========================================================
+           RESPONSIVE
+           =========================================================== */
         @media (max-width: 768px) {
-            .showcase-viewport {
-                padding: 16px 14px 40px;
-            }
-            .hero-main-title {
-                font-size: 1.95rem;
-            }
-            .station-card, .station-card.card-reversed {
-                grid-template-columns: 1fr;
-                gap: 20px;
-            }
-            .station-card.card-reversed .station-img-wrap {
-                order: 2;
-            }
-            .station-card.card-reversed .station-content-wrap {
-                order: 1;
-            }
-            .craft-highlights-grid {
-                grid-template-columns: 1fr;
-                gap: 18px;
-            }
-            .macro-hero-card {
-                padding: 20px 16px;
-            }
-            .the-real-claw-rig {
-                width: 110px;
-                height: 110px;
-            }
+            .site-header { padding: 12px 16px; }
+            .brand-pill { padding: 8px 14px; }
+            .brand-text h1 { font-size: 1rem; }
+            .the-claw { width: 200px; height: 200px; }
+            .card-body { grid-template-columns: 1fr; gap: 16px; padding: 20px; }
+            .card-body.reversed { direction: ltr; }
+            .story-card { border-radius: 20px; }
+            .scroll-progress { right: 12px; }
+            .hero-content { margin-top: 15vh; }
+        }
+
+        @media (max-width: 480px) {
+            .header-actions { display: none; }
+            .the-claw { width: 160px; height: 160px; }
         }
     </style>
 </head>
 <body>
 
-    <!-- Sky Animation Background with Floating WebP Clouds -->
-    <div class="sky-animations" id="skyContainer"></div>
+    <!-- Scroll Territory (drives the entire experience) -->
+    <div class="scroll-spacer"></div>
 
-    <!-- Top Cable Collar on Header -->
-    <div class="claw-cable-collar" id="cableCollar"></div>
+    <!-- Fixed Cinema Stage -->
+    <div class="cinema-stage" id="cinemaStage">
 
-    <!-- Steel Cable that Extends Downward as You Scroll -->
-    <div class="claw-cable-line" id="cableLine"></div>
+        <!-- Sky + Clouds -->
+        <div class="sky-layer" id="skyLayer"></div>
 
-    <!-- THE REAL PHOTOREALISTIC CANDY RED & DARK BLUE CLAW RIG (No generic icon claw!) -->
-    <div class="the-real-claw-rig" id="realClawRig" title="Click to trigger claw grab!">
-        <!-- Dialog speech bubble on grab -->
-        <div class="claw-dialog-bubble" id="clawBubble">GRABBED!</div>
+        <!-- Cinematic Overlays -->
+        <div class="vignette"></div>
+        <div class="depth-blur-top"></div>
 
-        <!-- The Actual Photorealistic Claw Cutout matching the Macro Hero -->
-        <img src="assets/claw_cutout.png" alt="Real Red & Dark Blue Claw Gripper" class="claw-image" id="clawImg">
+        <!-- Floating Particles -->
+        <div class="particle-layer" id="particleLayer"></div>
 
-        <!-- Captured Item / Badge Held in Claw Tips -->
-        <div class="claw-captured-item" id="clawItem">⭐</div>
-    </div>
+        <!-- Hero Background Image (Full bleed, fades out on scroll) -->
+        <div class="hero-image-layer" id="heroImage">
+            <img src="assets/claw_hero_noclaw.jpg" alt="CoreXY Claw Machine Interior with Cloud Prize Bed" loading="eager">
+        </div>
 
-    <!-- Main Showcase Viewport -->
-    <main class="showcase-viewport">
-
-        <!-- Navigation Bar -->
-        <header class="maker-header">
-            <div class="brand-zone">
+        <!-- Header -->
+        <header class="site-header" id="siteHeader">
+            <div class="brand-pill">
                 <span class="brand-icon">☁️</span>
                 <div class="brand-text">
                     <h1>THE CLOUDCATCHER</h1>
-                    <p>Custom Handcrafted Claw Machine</p>
+                    <p>Handmade CoreXY Claw Machine</p>
                 </div>
             </div>
-
-            <div class="nav-buttons">
-                <button class="pill-btn" id="btnAudioToggle" title="Toggle Sound Effects">
-                    <span>🔊</span> Sound
-                </button>
-                <button class="pill-btn accent-red" onclick="openModal()">
-                    <span>✨</span> Commission
-                </button>
+            <div class="header-actions">
+                <button class="btn-glass" id="btnSound">🔊 Sound</button>
+                <button class="btn-glass btn-cta" onclick="openModal()">✨ Commission</button>
             </div>
         </header>
 
-        <!-- Huge Hero Card: Macro Close-Up with Claw Centered at the Top -->
-        <section class="macro-hero-card" id="heroCard">
-            <div class="hero-intro-text">
-                <span class="handwritten-badge">Handmade in our maker studio ☁️</span>
-                <h2 class="hero-main-title">
-                    The Custom Arcade Claw Machine Built with <span>CoreXY Precision</span>.
+        <!-- Rope -->
+        <div class="crane-rope" id="rope"></div>
+
+        <!-- The Claw -->
+        <div class="the-claw" id="theClaw">
+            <img src="assets/claw_cutout.png" alt="Candy Red & Dark Blue Claw" id="clawImg">
+        </div>
+
+        <!-- ============ STORY SECTIONS ============ -->
+
+        <!-- Section 0: Hero -->
+        <section class="story-section active" id="sec0">
+            <div class="hero-content">
+                <div class="hero-handwritten">Handcrafted with passion ☁️</div>
+                <h2 class="hero-headline">
+                    Arcade Nostalgia,<br>
+                    Engineered with <span class="accent">CoreXY Precision</span>.
                 </h2>
-                <p class="hero-subtitle">
-                    Crafted from a pastel light blue 3D printer frame with fluffy white clouds on the prize bed, exterior-mounted acrylic glass, and a glossy candy red & dark blue claw.
+                <p class="hero-sub">
+                    A hand-painted pastel blue frame. Fluffy white clouds cradling prizes. A candy red claw descending with whisper-quiet precision. This is not a toy — it's a statement piece.
                 </p>
-            </div>
-
-            <!-- HUGE MACRO HERO PICTURE -->
-            <div class="huge-macro-photo-frame" id="macroHeroPhoto">
-                <img src="assets/claw_hero.jpg" alt="Macro close-up of the CoreXY Claw Machine with centered red and dark blue claw" loading="eager">
-                
-                <div class="claw-hero-anchor-marker">
-                    <span>🎮</span> The Interactive Red & Dark Blue Claw
-                </div>
-            </div>
-
-            <div class="scroll-nudge">
-                <span>Scroll down and watch this claw descend to grab details</span>
-                <span class="scroll-down-arrow">↓</span>
-            </div>
-        </section>
-
-        <!-- Feature Milestones Section (Interactive Claw Grab Stations) -->
-        <div class="stations-headline">
-            <h2>Craftsmanship You Can Touch</h2>
-            <p>The claw moves down through the page, inspecting and grabbing each bespoke detail.</p>
-        </div>
-
-        <div class="grab-cards-stream">
-
-            <!-- Station 1: The Light-Blue CoreXY Frame -->
-            <article class="station-card" id="station1" data-x-percent="28" data-drop-y="180" data-token="🛠️" data-msg="COREXY FRAME!">
-                <div class="station-content-wrap">
-                    <span class="station-pill-label">01 // KINEMATICS & FRAME</span>
-                    <h3>Pastel Light Blue CoreXY Kinematics</h3>
-                    <p>
-                        Engineered around a high-precision CoreXY belt drive painted in soft sky blue. Synchronous dual belts and silent stepper drivers deliver silky, whisper-quiet motion without the noisy rattle of commercial arcade boxes.
-                    </p>
-                    <div class="station-chips">
-                        <span class="chip">☁️ Light Blue Finish</span>
-                        <span class="chip">⚡ CoreXY Belt Drive</span>
-                        <span class="chip">🤫 Whisper Quiet</span>
-                    </div>
-                    <button class="station-action-btn" onclick="triggerClawStation('station1')">
-                        <span>🎯</span> Grab CoreXY Spec
-                    </button>
-                </div>
-
-                <div class="station-img-wrap">
-                    <img src="assets/claw_hero.jpg" alt="CoreXY Frame and Belts Detail" loading="lazy">
-                </div>
-            </article>
-
-            <!-- Station 2: The Red/Dark-Blue Claw & Cloud Bed -->
-            <article class="station-card card-reversed" id="station2" data-x-percent="72" data-drop-y="210" data-token="⭐" data-msg="CANDY RED CLAW!">
-                <div class="station-content-wrap">
-                    <span class="station-pill-label">02 // CLAW & PRIZE BED</span>
-                    <h3>Candy Red & Dark Blue Claw over Cloud Bed</h3>
-                    <p>
-                        The centerpiece is the motorized 3-finger claw in candy red with a dark navy anodized collar. Down on the prize floor, hand-finished white clouds cradle plushies, prize capsules, and celebration merchandise.
-                    </p>
-                    <div class="station-chips">
-                        <span class="chip">🔴 Candy Red & Navy</span>
-                        <span class="chip">☁️ Cloud Prize Bed</span>
-                        <span class="chip">🧸 Adjustable Grip</span>
-                    </div>
-                    <button class="station-action-btn" onclick="triggerClawStation('station2')">
-                        <span>🎯</span> Grab Star Plushie
-                    </button>
-                </div>
-
-                <div class="station-img-wrap">
-                    <img src="assets/claw_closeup.jpg" alt="Candy Red Claw Holding Star Plushie" loading="lazy">
-                </div>
-            </article>
-
-            <!-- Station 3: Exterior Mounted Glass Panels -->
-            <article class="station-card" id="station3" data-x-percent="35" data-drop-y="190" data-token="✨" data-msg="FLUSH GLASS!">
-                <div class="station-content-wrap">
-                    <span class="station-pill-label">03 // ARCHITECTURAL FIT</span>
-                    <h3>Exterior-Mounted Flush Acrylic Glass</h3>
-                    <p>
-                        Crystal-clear 4mm cast acrylic panels are cleanly mounted directly on the outside with polished chrome standoffs. Warm internal edge illumination illuminates the interior from every viewing angle.
-                    </p>
-                    <div class="station-chips">
-                        <span class="chip">🪟 Exterior Glass Mount</span>
-                        <span class="chip">✨ Warm Ambient Glow</span>
-                        <span class="chip">🎪 360° Viewing Clarity</span>
-                    </div>
-                    <button class="station-action-btn" onclick="triggerClawStation('station3')">
-                        <span>🎯</span> Inspect Glass Detail
-                    </button>
-                </div>
-
-                <div class="station-img-wrap">
-                    <img src="assets/claw_showcase.jpg" alt="Exterior Glass Mounted in Showcase Setting" loading="lazy">
-                </div>
-            </article>
-
-        </div>
-
-        <!-- Craftsmanship Highlights -->
-        <section class="craft-highlights">
-            <div class="craft-highlights-grid">
-                <div class="craft-item">
-                    <div class="craft-icon">⚡</div>
-                    <h4>Plug & Play</h4>
-                    <p>Standard household wall plug. Lightweight and portable for weddings, popups, and luxury game rooms.</p>
-                </div>
-                <div class="craft-item">
-                    <div class="craft-icon">📱</div>
-                    <h4>Smart Control</h4>
-                    <p>Adjust game duration, payout win rates, and LED lighting themes directly from your smartphone or tablet.</p>
-                </div>
-                <div class="craft-item">
-                    <div class="craft-icon">🎨</div>
-                    <h4>Bespoke Finishes</h4>
-                    <p>Custom marquee lettering, tailored frame colors, and themed prize sets available for custom commissions.</p>
+                <div class="scroll-cue" onclick="scrollToSection(1)">
+                    <span>Watch the claw descend</span>
+                    <span class="arrow">↓</span>
                 </div>
             </div>
         </section>
 
-        <!-- Buyer Commission Section -->
-        <section class="commission-section" id="inquire">
-            <span class="handwritten-badge" style="font-size: 1.45rem;">Custom commissions & event rentals ✨</span>
-            <h3>Bring This Magic to Your Space</h3>
-            <p>
-                Every machine is handcrafted with passion in our workshop. Whether for a luxury home game room, boutique event activation, or unique gift, we build to order.
-            </p>
-            <div class="commission-btns-wrap">
-                <button class="pill-btn accent-red" style="padding: 12px 28px; font-size: 0.95rem;" onclick="openModal()">
-                    <span>📩</span> Inquire for Build or Rental
-                </button>
-                <button class="pill-btn" style="padding: 12px 22px; font-size: 0.9rem;" onclick="triggerClawStation('station2')">
-                    <span>🎮</span> Watch Claw Grab
-                </button>
+        <!-- Section 1: CoreXY Kinematics -->
+        <section class="story-section" id="sec1">
+            <div class="story-card" id="storyCard1">
+                <div class="card-bracket">
+                    <div class="bracket-dot"></div>
+                    <span class="bracket-label">01 // KINEMATICS & CHASSIS</span>
+                    <div class="bracket-dot"></div>
+                </div>
+                <div class="card-body">
+                    <div class="card-image">
+                        <img src="assets/claw_gantry.jpg" alt="CoreXY Gantry System with Linear Rails" loading="lazy">
+                    </div>
+                    <div class="card-text">
+                        <span class="pill">COREXY ARCHITECTURE</span>
+                        <h3>Hand-Painted Pastel Blue CoreXY Chassis</h3>
+                        <p>
+                            Built around a high-precision CoreXY belt drive painted in soft sky blue. Dual synchronized GT2 belts and silent stepper drivers deliver whisper-quiet, buttery-smooth motion.
+                        </p>
+                        <div class="chips">
+                            <span class="chip">☁️ Sky Blue Finish</span>
+                            <span class="chip">⚡ CoreXY Drive</span>
+                            <span class="chip">🤫 Silent Motion</span>
+                        </div>
+                    </div>
+                </div>
             </div>
         </section>
 
-    </main>
+        <!-- Section 2: Cloud Bed & Claw -->
+        <section class="story-section" id="sec2">
+            <div class="story-card" id="storyCard2">
+                <div class="card-bracket">
+                    <div class="bracket-dot"></div>
+                    <span class="bracket-label">02 // CLAW & PRIZE BED</span>
+                    <div class="bracket-dot"></div>
+                </div>
+                <div class="card-body reversed">
+                    <div class="card-image">
+                        <img src="assets/claw_closeup.jpg" alt="Candy Red Claw over Cloud Prize Bed" loading="lazy">
+                    </div>
+                    <div class="card-text">
+                        <span class="pill">GRIPPER & ATMOSPHERE</span>
+                        <h3>Candy Red Claw over a Cloud Bed</h3>
+                        <p>
+                            The showstopper: a motorized 3-finger claw in glossy candy red with a dark navy anodized collar. Below, hand-painted white clouds cradle plushies, capsules, and treasures.
+                        </p>
+                        <div class="chips">
+                            <span class="chip">🔴 Candy Red & Navy</span>
+                            <span class="chip">☁️ Cloud Prize Bed</span>
+                            <span class="chip">🧸 Adjustable Grip</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 3: Flush Glass -->
+        <section class="story-section" id="sec3">
+            <div class="story-card" id="storyCard3">
+                <div class="card-bracket">
+                    <div class="bracket-dot"></div>
+                    <span class="bracket-label">03 // ARCHITECTURAL FIT</span>
+                    <div class="bracket-dot"></div>
+                </div>
+                <div class="card-body">
+                    <div class="card-image">
+                        <img src="assets/claw_showcase.jpg" alt="Exterior Mounted Flush Acrylic Glass Panels" loading="lazy">
+                    </div>
+                    <div class="card-text">
+                        <span class="pill">CABINET CRAFTSMANSHIP</span>
+                        <h3>Exterior-Mounted Flush Acrylic Glass</h3>
+                        <p>
+                            Crystal-clear 4mm cast acrylic panels bolted cleanly from the outside with polished chrome standoffs. Warm ambient LED edge lighting showcases prizes from every angle.
+                        </p>
+                        <div class="chips">
+                            <span class="chip">🪟 Exterior Glass Mount</span>
+                            <span class="chip">✨ Ambient LED Glow</span>
+                            <span class="chip">🎪 360° Clarity</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 4: CTA Finale -->
+        <section class="story-section" id="sec4">
+            <div class="finale-content">
+                <div class="finale-handwritten">Let's build something magical ✨</div>
+                <h2 class="finale-headline">Bring This Magic<br>to Your Space</h2>
+                <p class="finale-sub">
+                    Every machine is handcrafted with passion in our workshop. Whether for a luxury home game room, boutique event activation, or a truly unique gift — we build to order.
+                </p>
+                <div class="finale-btns">
+                    <button class="btn-glass btn-cta btn-large" onclick="openModal()">
+                        📩 Inquire for Build or Event
+                    </button>
+                    <button class="btn-glass" onclick="scrollToSection(0)">
+                        ↺ Back to Start
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Scroll Progress Indicator -->
+        <nav class="scroll-progress" id="scrollProgress">
+            <div class="progress-track-bg"></div>
+            <div class="progress-track" id="progressTrack"></div>
+            <div class="progress-dot active" data-label="Welcome" onclick="scrollToSection(0)"></div>
+            <div class="progress-dot" data-label="Kinematics" onclick="scrollToSection(1)"></div>
+            <div class="progress-dot" data-label="Claw & Bed" onclick="scrollToSection(2)"></div>
+            <div class="progress-dot" data-label="Glass" onclick="scrollToSection(3)"></div>
+            <div class="progress-dot" data-label="Commission" onclick="scrollToSection(4)"></div>
+        </nav>
+
+    </div>
 
     <!-- Inquiry Modal -->
-    <div class="inquiry-modal-wrap" id="inquiryModal">
-        <div class="inquiry-dialog">
-            <button class="close-dialog-btn" onclick="closeModal()">✕</button>
-            <h3 style="font-family: 'Outfit', sans-serif; font-size: 1.4rem; font-weight: 800; color: #0f172a; margin-bottom: 6px;">
+    <div class="modal-overlay" id="inquiryModal">
+        <div class="modal-box">
+            <button class="modal-close" onclick="closeModal()">✕</button>
+            <h3 style="font-family:'Outfit',sans-serif; font-size:1.4rem; font-weight:800; color:#0f172a; margin-bottom:6px;">
                 Custom Claw Machine Inquiry
             </h3>
-            <p style="font-size: 0.85rem; color: #64748b;">
+            <p style="font-size:0.85rem; color:#64748b;">
                 Share your space, event date, or custom color preferences with us.
             </p>
-
-            <form onsubmit="handleInquirySubmit(event)">
-                <div class="input-group">
+            <form onsubmit="handleSubmit(event)">
+                <div class="form-group">
                     <label>Name</label>
-                    <input type="text" class="custom-input" placeholder="Your Name" required>
+                    <input type="text" class="form-input" placeholder="Your Name" required>
                 </div>
-                <div class="input-group">
+                <div class="form-group">
                     <label>Email</label>
-                    <input type="email" class="custom-input" placeholder="your.email@example.com" required>
+                    <input type="email" class="form-input" placeholder="your.email@example.com" required>
                 </div>
-                <div class="input-group">
+                <div class="form-group">
                     <label>Inquiry Type</label>
-                    <select class="custom-input" style="background: white;">
+                    <select class="form-input" style="background:white;">
                         <option>Custom Build (Purchase for Home / Business)</option>
                         <option>Event Rental (Wedding / Corporate Activation)</option>
                         <option>Boutique Display / Press Collaboration</option>
                     </select>
                 </div>
-                <div class="input-group">
-                    <label>Message / Location</label>
-                    <textarea class="custom-input" rows="3" placeholder="Tell us about your event date, theme, or delivery requirements..."></textarea>
+                <div class="form-group">
+                    <label>Message</label>
+                    <textarea class="form-input" rows="3" placeholder="Tell us about your event date, theme, or delivery requirements..."></textarea>
                 </div>
-                <button type="submit" class="pill-btn accent-red" style="margin-top: 18px; width: 100%; justify-content: center; padding: 12px;">
+                <button type="submit" class="btn-glass btn-cta" style="margin-top:18px; width:100%; justify-content:center; padding:12px;">
                     Send Inquiry
                 </button>
             </form>
         </div>
     </div>
 
-    <!-- Scripts: Audio, High-End Scroll Tracking & Real Photorealistic Claw Animation -->
     <script>
-        // ==========================================
-        // 1. Audio System (Synthetic Web Audio)
-        // ==========================================
-        class ClawAudio {
-            constructor() {
-                this.enabled = true;
-                this.ctx = null;
-            }
-
-            getContext() {
-                if (!this.ctx) {
-                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
-                    if (AudioCtx) this.ctx = new AudioCtx();
-                }
-                if (this.ctx && this.ctx.state === 'suspended') {
-                    this.ctx.resume();
-                }
-                return this.ctx;
-            }
-
-            playGrab() {
-                if (!this.enabled) return;
-                try {
-                    const ctx = this.getContext();
-                    if (!ctx) return;
-                    const now = ctx.currentTime;
-
-                    // Clank / mechanical grip
-                    const osc = ctx.createOscillator();
-                    const gain = ctx.createGain();
-                    osc.connect(gain);
-                    gain.connect(ctx.destination);
-
-                    osc.type = 'triangle';
-                    osc.frequency.setValueAtTime(320, now);
-                    osc.frequency.exponentialRampToValueAtTime(740, now + 0.12);
-                    gain.gain.setValueAtTime(0.2, now);
-                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
-                    osc.start(now);
-                    osc.stop(now + 0.25);
-
-                    // Chime tone
-                    setTimeout(() => {
-                        const chime = ctx.createOscillator();
-                        const cGain = ctx.createGain();
-                        chime.connect(cGain);
-                        cGain.connect(ctx.destination);
-                        chime.type = 'sine';
-                        chime.frequency.setValueAtTime(1046.5, ctx.currentTime);
-                        cGain.gain.setValueAtTime(0.15, ctx.currentTime);
-                        cGain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
-                        chime.start();
-                        chime.stop(ctx.currentTime + 0.3);
-                    }, 110);
-                } catch (e) {}
-            }
+    // ===========================================================
+    // AUDIO SYSTEM
+    // ===========================================================
+    class ClawAudio {
+        constructor() {
+            this.enabled = true;
+            this.ctx = null;
         }
-
-        const clawAudio = new ClawAudio();
-        const btnAudioToggle = document.getElementById('btnAudioToggle');
-        btnAudioToggle.addEventListener('click', () => {
-            clawAudio.enabled = !clawAudio.enabled;
-            btnAudioToggle.innerHTML = clawAudio.enabled ? '<span>🔊</span> Sound' : '<span>🔇</span> Muted';
-        });
-
-        // ==========================================
-        // 2. High-End Scroll Tracking & Real Claw Animation
-        // ==========================================
-        const realClawRig = document.getElementById('realClawRig');
-        const cableCollar = document.getElementById('cableCollar');
-        const cableLine = document.getElementById('cableLine');
-        const clawBubble = document.getElementById('clawBubble');
-        const clawItem = document.getElementById('clawItem');
-        const stations = document.querySelectorAll('.station-card');
-
-        let isManualOverride = false;
-        let lastActiveStation = null;
-
-        // Smooth physics state
-        let targetX = 50;
-        let currentX = 50;
-        let targetDrop = 60; // cable height in px
-        let currentDrop = 60;
-
-        function updateClawScroll() {
-            if (isManualOverride) return;
-
-            const scrollY = window.scrollY || window.pageYOffset;
-            const docHeight = document.documentElement.scrollHeight - window.innerHeight;
-            const scrollPercent = Math.min(1, Math.max(0, scrollY / (docHeight || 1)));
-
-            // When user is at the very top of the page (hero photo view)
-            if (scrollY < 180) {
-                targetX = 50;
-                targetDrop = 60; // sits at the top of the hero
-                stations.forEach(s => s.classList.remove('claw-grabbing-now'));
-                lastActiveStation = null;
-                releaseGrip();
-                renderClaw();
-                return;
+        getCtx() {
+            if (!this.ctx) {
+                const A = window.AudioContext || window.webkitAudioContext;
+                if (A) this.ctx = new A();
             }
-
-            // Check if any station card is currently focused in viewport
-            let currentStation = null;
-            stations.forEach(card => {
-                const rect = card.getBoundingClientRect();
-                const cardCenter = rect.top + rect.height / 2;
-                if (cardCenter > window.innerHeight * 0.22 && cardCenter < window.innerHeight * 0.72) {
-                    currentStation = card;
-                }
-            });
-
-            if (currentStation) {
-                targetX = parseFloat(currentStation.dataset.xPercent) || 50;
-                targetDrop = parseFloat(currentStation.dataset.dropY) || 190;
-                const token = currentStation.dataset.token || '⭐';
-                const msg = currentStation.dataset.msg || 'GRABBED!';
-
-                stations.forEach(s => s.classList.remove('claw-grabbing-now'));
-                currentStation.classList.add('claw-grabbing-now');
-
-                if (lastActiveStation !== currentStation) {
-                    lastActiveStation = currentStation;
-                    triggerGrip(token, msg);
-                }
-            } else {
-                // Free travel between sections: natural sine wandering along the gantry
-                targetX = 35 + Math.sin(scrollPercent * Math.PI * 3.5) * 30;
-                targetDrop = 90 + Math.sin(scrollPercent * Math.PI * 4) * 25;
-
-                stations.forEach(s => s.classList.remove('claw-grabbing-now'));
-                lastActiveStation = null;
-                releaseGrip();
-            }
-
-            renderClaw();
+            if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+            return this.ctx;
         }
-
-        function renderClaw() {
-            // Smooth lerp interpolation
-            currentX += (targetX - currentX) * 0.14;
-            currentDrop += (targetDrop - currentDrop) * 0.14;
-
-            cableCollar.style.left = `${currentX}%`;
-            cableLine.style.left = `${currentX}%`;
-            cableLine.style.height = `${currentDrop}px`;
-
-            realClawRig.style.left = `${currentX}%`;
-            realClawRig.style.top = `${currentDrop}px`;
-        }
-
-        function triggerGrip(token, msg) {
-            clawItem.textContent = token;
-            clawBubble.textContent = msg;
-
-            realClawRig.classList.add('grabbing', 'has-item', 'show-bubble');
-            clawAudio.playGrab();
-        }
-
-        function releaseGrip() {
-            realClawRig.classList.remove('grabbing', 'has-item', 'show-bubble');
-        }
-
-        // Interactive Click on Station Cards
-        window.triggerClawStation = function(stationId) {
-            const station = document.getElementById(stationId);
-            if (!station) return;
-
-            isManualOverride = true;
-            station.scrollIntoView({ behavior: 'smooth', block: 'center' });
-
-            targetX = parseFloat(station.dataset.xPercent) || 50;
-            targetDrop = parseFloat(station.dataset.dropY) || 200;
-            const token = station.dataset.token || '⭐';
-            const msg = station.dataset.msg || 'GRABBED!';
-
-            stations.forEach(s => s.classList.remove('claw-grabbing-now'));
-            station.classList.add('claw-grabbing-now');
-
-            // Plunge down and squeeze
-            setTimeout(() => {
-                targetDrop += 35;
-                renderClaw();
+        playGrab() {
+            if (!this.enabled) return;
+            try {
+                const ctx = this.getCtx();
+                if (!ctx) return;
+                const now = ctx.currentTime;
+                // Mechanical clank
+                const osc = ctx.createOscillator();
+                const g = ctx.createGain();
+                osc.connect(g); g.connect(ctx.destination);
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(320, now);
+                osc.frequency.exponentialRampToValueAtTime(740, now + 0.12);
+                g.gain.setValueAtTime(0.18, now);
+                g.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+                osc.start(now); osc.stop(now + 0.25);
+                // Chime
                 setTimeout(() => {
-                    triggerGrip(token, msg);
-                    targetDrop -= 25; // spring pull-up bounce
-                    renderClaw();
-                    setTimeout(() => {
-                        isManualOverride = false;
-                    }, 1200);
-                }, 220);
-            }, 350);
-        };
+                    const c = ctx.createOscillator();
+                    const cg = ctx.createGain();
+                    c.connect(cg); cg.connect(ctx.destination);
+                    c.type = 'sine';
+                    c.frequency.setValueAtTime(1046.5, ctx.currentTime);
+                    cg.gain.setValueAtTime(0.12, ctx.currentTime);
+                    cg.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+                    c.start(); c.stop(ctx.currentTime + 0.3);
+                }, 110);
+            } catch (e) {}
+        }
+        playWhoosh() {
+            if (!this.enabled) return;
+            try {
+                const ctx = this.getCtx();
+                if (!ctx) return;
+                const now = ctx.currentTime;
+                // Subtle whoosh using noise-like oscillator
+                const osc = ctx.createOscillator();
+                const g = ctx.createGain();
+                osc.connect(g); g.connect(ctx.destination);
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(80, now);
+                osc.frequency.exponentialRampToValueAtTime(200, now + 0.15);
+                osc.frequency.exponentialRampToValueAtTime(60, now + 0.4);
+                g.gain.setValueAtTime(0.06, now);
+                g.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                osc.start(now); osc.stop(now + 0.4);
+            } catch (e) {}
+        }
+    }
 
-        // Click claw itself for a playful grab
-        realClawRig.addEventListener('click', () => {
-            const surprises = ['⭐', '🧸', '☁️', '🎉', '🎁'];
-            const randomItem = surprises[Math.floor(Math.random() * surprises.length)];
-            triggerGrip(randomItem, 'CATCH!');
-            targetDrop += 30;
-            renderClaw();
-            setTimeout(() => {
-                targetDrop -= 30;
-                renderClaw();
-                setTimeout(() => releaseGrip(), 1200);
-            }, 250);
+    const audio = new ClawAudio();
+    const btnSound = document.getElementById('btnSound');
+    btnSound.addEventListener('click', () => {
+        audio.enabled = !audio.enabled;
+        btnSound.textContent = audio.enabled ? '🔊 Sound' : '🔇 Muted';
+    });
+
+    // ===========================================================
+    // SCROLL-DRIVEN CINEMATIC ENGINE
+    // ===========================================================
+    const SECTION_COUNT = 5;
+    const sections = [];
+    const storyCards = [];
+    const progressDots = document.querySelectorAll('.progress-dot');
+    const progressTrack = document.getElementById('progressTrack');
+    const theClaw = document.getElementById('theClaw');
+    const clawImg = document.getElementById('clawImg');
+    const rope = document.getElementById('rope');
+    const heroImage = document.getElementById('heroImage');
+    const siteHeader = document.getElementById('siteHeader');
+
+    for (let i = 0; i < SECTION_COUNT; i++) {
+        sections.push(document.getElementById(`sec${i}`));
+        const sc = document.getElementById(`storyCard${i}`);
+        storyCards.push(sc);
+    }
+
+    // Claw choreography — bigger arcs, deeper drops
+    // { x: horizontal % position, y: vertical px from top, grip: boolean }
+    const clawChoreography = [
+        { x: 50, y: 35,  grip: false }, // Sec 0: hovering high, centered
+        { x: 32, y: 230, grip: true  }, // Sec 1: big swing left, deep plunge
+        { x: 70, y: 310, grip: true  }, // Sec 2: sweeps far right, even deeper
+        { x: 28, y: 400, grip: true  }, // Sec 3: slams far left, very deep
+        { x: 50, y: 480, grip: false }, // Sec 4: returns center, releases at bottom
+    ];
+
+    // Smooth lerp state
+    let clawState = { x: 50, y: 35 };
+    let clawTarget = { x: 50, y: 35 };
+    let currentSection = 0;
+    let scrollLocked = false;
+
+    // Calculate which section we're in based on scroll position
+    function getScrollProgress() {
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+        return Math.max(0, Math.min(1, scrollTop / maxScroll));
+    }
+
+    function getSectionFromProgress(progress) {
+        const raw = progress * (SECTION_COUNT - 1);
+        return Math.round(raw);
+    }
+
+    function getSectionProgressSmooth(progress) {
+        return progress * (SECTION_COUNT - 1);
+    }
+
+    // Core scroll handler — drives everything
+    function onScrollUpdate() {
+        const progress = getScrollProgress();
+        const sectionSmooth = getSectionProgressSmooth(progress);
+        const sectionIndex = Math.round(sectionSmooth);
+
+        // Interpolate claw position between sections
+        const lower = Math.floor(sectionSmooth);
+        const upper = Math.min(lower + 1, SECTION_COUNT - 1);
+        const t = sectionSmooth - lower;
+
+        const from = clawChoreography[lower];
+        const to = clawChoreography[upper];
+
+        clawTarget.x = from.x + (to.x - from.x) * t;
+        clawTarget.y = from.y + (to.y - from.y) * t;
+
+        // Update active section
+        if (sectionIndex !== currentSection) {
+            changeSection(sectionIndex);
+        }
+
+        // Hero image parallax + fade
+        const heroOpacity = Math.max(0, 1 - progress * 4);
+        const heroScale = 1 + progress * 0.3;
+        heroImage.style.opacity = heroOpacity;
+        heroImage.style.transform = `scale(${heroScale})`;
+
+        // Header fade
+        siteHeader.style.opacity = Math.max(0, 1 - progress * 6);
+
+        // Progress bar
+        const trackHeight = (progress * 100);
+        progressTrack.style.height = `${trackHeight}%`;
+
+        progressDots.forEach((dot, i) => {
+            dot.classList.toggle('active', i === sectionIndex);
+        });
+    }
+
+    function changeSection(newIndex) {
+        const oldIndex = currentSection;
+        currentSection = newIndex;
+
+        sections.forEach((sec, i) => {
+            sec.classList.remove('active', 'exiting-up');
+            if (i === newIndex) {
+                sec.classList.add('active');
+            } else if (i < newIndex) {
+                sec.classList.add('exiting-up');
+            }
         });
 
-        // Loop animation frame for physics
-        function animationLoop() {
-            updateClawScroll();
-            requestAnimationFrame(animationLoop);
-        }
-        requestAnimationFrame(animationLoop);
-
-        // ==========================================
-        // 3. Floating Clouds Background Generator
-        // ==========================================
-        function isMobile() {
-            return window.innerWidth < 768;
-        }
-
-        function pickCloudDepth() {
-            const r = Math.random();
-            if (r < 0.55) return 0;
-            if (r < 0.85) return 1;
-            return 2;
+        // Claw grip animation
+        const choreo = clawChoreography[newIndex];
+        if (choreo.grip) {
+            setTimeout(() => {
+                theClaw.classList.add('gripping');
+                const card = storyCards[newIndex];
+                if (card) card.classList.add('claw-attached');
+                audio.playGrab();
+            }, 300);
+        } else {
+            theClaw.classList.remove('gripping');
+            storyCards.forEach(c => { if (c) c.classList.remove('claw-attached'); });
         }
 
-        function createCloud(container, preheat = false) {
-            const cloudImages = ['assets/cloud01.webp', 'assets/cloud02.webp', 'assets/cloud03.webp'];
-            const wrapper = document.createElement('div');
-            wrapper.className = 'cloud-wrapper';
-            const cloud = document.createElement('div');
-            cloud.className = 'cloud';
+        // Release grip from old section's card
+        if (oldIndex !== newIndex) {
+            const oldCard = storyCards[oldIndex];
+            if (oldCard) oldCard.classList.remove('claw-attached');
+            audio.playWhoosh();
+        }
+    }
 
-            const img = cloudImages[Math.floor(Math.random() * cloudImages.length)];
-            const depth = pickCloudDepth();
+    // Smooth rendering loop
+    function renderLoop() {
+        // Lerp claw position
+        clawState.x += (clawTarget.x - clawState.x) * 0.10;
+        clawState.y += (clawTarget.y - clawState.y) * 0.10;
 
-            let scale, duration, opacity;
-            if (depth === 0) {
-                scale = 0.65 + Math.random() * 0.45;
-                duration = 160 + Math.random() * 40;
-                opacity = 0.25 + Math.random() * 0.1;
-            } else if (depth === 1) {
-                scale = 1.3 + Math.random() * 0.7;
-                duration = 95 + Math.random() * 30;
-                opacity = 0.5 + Math.random() * 0.15;
-            } else {
-                scale = 2.4 + Math.random() * 1.3;
-                duration = 65 + Math.random() * 25;
-                opacity = 0.75 + Math.random() * 0.15;
-            }
+        // Apply claw position
+        theClaw.style.left = `${clawState.x}%`;
+        theClaw.style.top = `${clawState.y}px`;
 
-            if (isMobile()) duration *= 0.45;
+        // Rope tracks the claw
+        rope.style.left = `${clawState.x}%`;
+        rope.style.height = `${clawState.y + 20}px`;
 
-            const skyHeight = container.getBoundingClientRect().height || window.innerHeight;
-            const top = Math.random() * skyHeight;
+        // Dramatic claw sway based on horizontal velocity
+        const velX = clawTarget.x - clawState.x;
+        const swayDeg = Math.max(-18, Math.min(18, velX * 1.4));
+        theClaw.style.transform = `translate(-50%, 0) rotate(${swayDeg}deg)`;
 
-            wrapper.style.top = `${top}px`;
-            wrapper.dataset.depth = depth;
+        requestAnimationFrame(renderLoop);
+    }
 
-            let animationDelay = 0;
-            if (preheat) animationDelay = -(Math.random() * duration);
+    // Scroll event
+    let scrollRaf = null;
+    window.addEventListener('scroll', () => {
+        if (scrollRaf) cancelAnimationFrame(scrollRaf);
+        scrollRaf = requestAnimationFrame(onScrollUpdate);
+    }, { passive: true });
 
-            const scaleX = Math.random() > 0.5 ? 1 : -1;
+    // Navigate to section
+    window.scrollToSection = function(index) {
+        const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+        const targetY = (index / (SECTION_COUNT - 1)) * maxScroll;
+        window.scrollTo({ top: targetY, behavior: 'smooth' });
+    };
 
-            cloud.style.cssText = `
-                background-image: url(${img});
-                width: ${280 * scale}px;
-                height: ${150 * scale}px;
-                opacity: ${opacity};
-                --cloud-scale-x: ${scaleX};
-                animation: cloudFly ${duration}s ease-in-out forwards;
-                animation-delay: ${animationDelay}s;
+    // Keyboard navigation
+    window.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowDown' || e.key === 'ArrowRight' || e.key === 'PageDown') {
+            e.preventDefault();
+            scrollToSection(Math.min(currentSection + 1, SECTION_COUNT - 1));
+        } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft' || e.key === 'PageUp') {
+            e.preventDefault();
+            scrollToSection(Math.max(currentSection - 1, 0));
+        }
+    });
+
+    // ===========================================================
+    // FLOATING CLOUDS
+    // ===========================================================
+    const skyLayer = document.getElementById('skyLayer');
+
+    function createCloud(container, preheat) {
+        const imgs = ['assets/cloud01.webp', 'assets/cloud02.webp', 'assets/cloud03.webp'];
+        const wrapper = document.createElement('div');
+        wrapper.className = 'cloud-wrapper';
+        const cloud = document.createElement('div');
+        cloud.className = 'cloud';
+
+        const img = imgs[Math.floor(Math.random() * imgs.length)];
+        const r = Math.random();
+        const depth = r < 0.55 ? 0 : r < 0.85 ? 1 : 2;
+
+        let scale, dur, opacity;
+        if (depth === 0) { scale = 0.6 + Math.random() * 0.4; dur = 160 + Math.random() * 40; opacity = 0.2 + Math.random() * 0.1; }
+        else if (depth === 1) { scale = 1.2 + Math.random() * 0.7; dur = 95 + Math.random() * 30; opacity = 0.45 + Math.random() * 0.15; }
+        else { scale = 2.2 + Math.random() * 1.2; dur = 60 + Math.random() * 25; opacity = 0.7 + Math.random() * 0.15; }
+
+        if (window.innerWidth < 768) dur *= 0.45;
+
+        const top = Math.random() * (container.getBoundingClientRect().height || window.innerHeight);
+        wrapper.style.top = `${top}px`;
+        wrapper.dataset.depth = depth;
+
+        let delay = 0;
+        if (preheat) delay = -(Math.random() * dur);
+        const sx = Math.random() > 0.5 ? 1 : -1;
+
+        cloud.style.cssText = `
+            background-image: url(${img});
+            width: ${280 * scale}px;
+            height: ${150 * scale}px;
+            opacity: ${opacity};
+            --cloud-scale-x: ${sx};
+            animation: cloudFly ${dur}s ease-in-out forwards;
+            animation-delay: ${delay}s;
+        `;
+
+        wrapper.appendChild(cloud);
+        container.appendChild(wrapper);
+
+        setTimeout(() => wrapper.remove(), (dur + Math.abs(delay)) * 1000 + 500);
+    }
+
+    function initClouds() {
+        const h = skyLayer.getBoundingClientRect().height || window.innerHeight;
+        const count = Math.min(100, Math.max(25, Math.round(h / 35)));
+        for (let i = 0; i < count; i++) createCloud(skyLayer, true);
+
+        function schedule() {
+            setTimeout(() => {
+                createCloud(skyLayer, false);
+                schedule();
+            }, 800 + Math.random() * 1200);
+        }
+        schedule();
+    }
+
+    // ===========================================================
+    // FLOATING PARTICLES
+    // ===========================================================
+    function initParticles() {
+        const layer = document.getElementById('particleLayer');
+        const count = window.innerWidth < 768 ? 40 : 90;
+
+        for (let i = 0; i < count; i++) {
+            const p = document.createElement('div');
+            p.className = 'particle';
+
+            // Mix of tiny round motes, small stars, and sparkle shapes
+            const size = 1.5 + Math.random() * 5;
+            const x = Math.random() * 100;
+            const y = Math.random() * 100;
+            const dx = (Math.random() - 0.5) * 300;
+            const dy = -80 - Math.random() * 220;
+            const dur = 5 + Math.random() * 14;
+            const delay = Math.random() * dur;
+            // Some particles are golden/amber for warmth
+            const isWarm = Math.random() > 0.6;
+            const r = isWarm ? Math.floor(245 + Math.random() * 10) : 255;
+            const g = isWarm ? Math.floor(158 + Math.random() * 40) : 255;
+            const b = isWarm ? Math.floor(11 + Math.random() * 30) : 255;
+            const alpha = 0.35 + Math.random() * 0.55;
+
+            p.style.cssText = `
+                left: ${x}%;
+                top: ${y}%;
+                width: ${size}px;
+                height: ${size}px;
+                --px-dx: ${dx}px;
+                --px-dy: ${dy}px;
+                animation-duration: ${dur}s;
+                animation-delay: -${delay}s;
+                background: rgba(${r},${g},${b},${alpha});
+                border-radius: ${Math.random() > 0.7 ? '2px' : '50%'};
             `;
 
-            wrapper.appendChild(cloud);
-            container.appendChild(wrapper);
-
-            const removeAfter = (duration + Math.abs(animationDelay)) * 1000 + 500;
-            setTimeout(() => wrapper.remove(), removeAfter);
+            layer.appendChild(p);
         }
+    }
 
-        function spawnClouds(container) {
-            const skyH = container.getBoundingClientRect().height || window.innerHeight;
-            const initialClouds = Math.min(130, Math.max(30, Math.round(skyH / 32)));
-            for (let i = 0; i < initialClouds; i++) {
-                createCloud(container, true);
-            }
+    // ===========================================================
+    // MODAL
+    // ===========================================================
+    const modal = document.getElementById('inquiryModal');
+    window.openModal = () => modal.classList.add('open');
+    window.closeModal = () => modal.classList.remove('open');
+    modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+    window.handleSubmit = (e) => {
+        e.preventDefault();
+        alert('✨ Thank you for your inquiry! We will get in touch shortly.');
+        closeModal();
+    };
 
-            function scheduleNextCloud() {
-                const delay = 750 + Math.random() * 1100;
-                setTimeout(() => {
-                    createCloud(container, false);
-                    scheduleNextCloud();
-                }, delay);
-            }
-            scheduleNextCloud();
-        }
+    // ===========================================================
+    // INIT
+    // ===========================================================
+    initClouds();
+    initParticles();
+    requestAnimationFrame(renderLoop);
+    onScrollUpdate();
 
-        const skyContainer = document.getElementById('skyContainer');
-        if (skyContainer) {
-            spawnClouds(skyContainer);
-        }
-
-        // ==========================================
-        // 4. Modal Handlers
-        // ==========================================
-        const inquiryModal = document.getElementById('inquiryModal');
-
-        window.openModal = function() {
-            inquiryModal.classList.add('open');
-        };
-
-        window.closeModal = function() {
-            inquiryModal.classList.remove('open');
-        };
-
-        inquiryModal.addEventListener('click', (e) => {
-            if (e.target === inquiryModal) closeModal();
-        });
-
-        window.handleInquirySubmit = function(e) {
-            e.preventDefault();
-            alert('✨ Thank you for your inquiry! We will get in touch with you shortly.');
-            closeModal();
-        };
     </script>
 </body>
 </html>
