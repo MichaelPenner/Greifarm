@@ -1,0 +1,3420 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>☁️ The CloudCatcher — Bespoke CoreXY Kinetic Arcade Machine</title>
+    <meta name="description"
+        content="Handcrafted bespoke CoreXY claw machine featuring a pastel sky-blue precision gantry, fluffy cloud prize bed, candy-red & navy CNC claw, and native Home Assistant telemetry.">
+
+    <!-- Self-Hosted Fonts (works both from workspace root and deployed frontend folder) -->
+    <link rel="stylesheet" href="frontend/css/fonts.css" onerror="this.onerror=null;this.href='css/fonts.css';">
+    <link rel="stylesheet" href="css/fonts.css">
+
+    <style>
+        /* ===========================================================
+           DESIGN TOKENS — AWWWARDS EDITORIAL SKY & KINETIC ARCADE
+           =========================================================== */
+        :root {
+            --sky-top: #ffffff;
+            --sky-mid: #dfeefb;
+            --sky-bottom: #b4d6f0;
+            --sky-glow: rgba(255, 255, 255, 0.75);
+
+            --machine-blue: #7bb5e8;
+            --machine-blue-deep: #0284c7;
+            --claw-red: #e11d48;
+            --claw-red-glow: rgba(225, 29, 72, 0.45);
+            --claw-navy: #172e4d;
+            --birch-warm: #e6ccb2;
+            --accent-amber: #f59e0b;
+            --accent-emerald: #10b981;
+
+            --glass-bg: rgba(255, 255, 255, 0.86);
+            --glass-bg-strong: rgba(255, 255, 255, 0.94);
+            --glass-border: rgba(255, 255, 255, 0.95);
+            --glass-stroke: rgba(148, 163, 184, 0.22);
+            --glass-shadow:
+                0 40px 100px -24px rgba(15, 23, 42, 0.24),
+                0 12px 32px -8px rgba(15, 23, 42, 0.10),
+                inset 0 1px 1px rgba(255, 255, 255, 1);
+
+            --text-dark: #0f172a;
+            --text-body: #334155;
+            --text-muted: #64748b;
+
+            --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+            --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        /* ===========================================================
+           RESET & BASE
+           =========================================================== */
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            scroll-behavior: auto;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--sky-bottom);
+            color: var(--text-dark);
+            overflow-x: hidden;
+            selection-background-color: var(--claw-red);
+        }
+
+        ::selection {
+            background: rgba(225, 29, 72, 0.16);
+            color: var(--claw-red);
+        }
+
+        /* 6 chapters -> 650vh of smooth scroll territory */
+        .scroll-spacer {
+            height: 650vh;
+            position: relative;
+        }
+
+        /* ===========================================================
+           FIXED VIEWPORT CINEMA STAGE
+           =========================================================== */
+        .cinema-stage {
+            position: fixed;
+            inset: 0;
+            overflow: hidden;
+            z-index: 10;
+            pointer-events: none;
+            perspective: 1400px;
+        }
+
+        .cinema-stage * {
+            pointer-events: auto;
+        }
+
+        /* ===========================================================
+           1. DYNAMIC SCENIC SKY & VOLUMETRIC ATMOSPHERE
+           =========================================================== */
+        .sky-layer {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            background: linear-gradient(180deg,
+                    var(--sky-top) 0%,
+                    var(--sky-mid) 45%,
+                    var(--sky-bottom) 100%);
+            transition: background 1.2s ease;
+            pointer-events: none;
+        }
+
+        /* Subtle volumetric sunbeams / god-rays */
+        .sunbeams {
+            position: absolute;
+            inset: -20%;
+            z-index: 2;
+            pointer-events: none;
+            background:
+                repeating-linear-gradient(118deg,
+                    rgba(255, 255, 255, 0.0) 0%,
+                    rgba(255, 255, 255, 0.24) 7%,
+                    rgba(255, 255, 255, 0.0) 15%);
+            filter: blur(28px);
+            opacity: 0.7;
+            transform: translate3d(0, 0, 0);
+            will-change: transform, opacity;
+        }
+
+        /* Ambient warm horizon glow that shifts with chapter */
+        .horizon-glow {
+            position: absolute;
+            inset: 0;
+            z-index: 2;
+            pointer-events: none;
+            background: radial-gradient(circle at 50% 25%,
+                    rgba(255, 255, 255, 0.7) 0%,
+                    rgba(123, 181, 232, 0.12) 55%,
+                    transparent 80%);
+            transition: opacity 0.8s ease;
+        }
+
+        /* Floating layered clouds */
+        .cloud-wrapper {
+            position: absolute;
+            left: 0;
+            will-change: transform;
+            pointer-events: none;
+        }
+
+        .cloud-wrapper[data-depth="0"] {
+            z-index: 1;
+            filter: blur(1px);
+        }
+
+        .cloud-wrapper[data-depth="1"] {
+            z-index: 3;
+        }
+
+        .cloud-wrapper[data-depth="2"] {
+            z-index: 6;
+        }
+
+        .cloud {
+            position: relative;
+            background-size: contain;
+            background-repeat: no-repeat;
+            pointer-events: none;
+        }
+
+        @keyframes cloudFly {
+            from {
+                transform: translate3d(calc(-100% - 140px), 0, 0) scaleX(var(--cloud-scale-x, 1));
+            }
+
+            to {
+                transform: translate3d(calc(100vw + 240px), 0, 0) scaleX(var(--cloud-scale-x, 1));
+            }
+        }
+
+        /* ===========================================================
+           2. HERO INTERIOR PARALLAX WINDOW
+           =========================================================== */
+        .hero-image-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 84vh;
+            z-index: 4;
+            pointer-events: none;
+            will-change: transform, opacity;
+            mask-image: linear-gradient(to bottom,
+                    rgba(0, 0, 0, 0.96) 0%,
+                    rgba(0, 0, 0, 0.88) 42%,
+                    rgba(0, 0, 0, 0.28) 78%,
+                    rgba(0, 0, 0, 0) 100%);
+            -webkit-mask-image: linear-gradient(to bottom,
+                    rgba(0, 0, 0, 0.96) 0%,
+                    rgba(0, 0, 0, 0.88) 42%,
+                    rgba(0, 0, 0, 0.28) 78%,
+                    rgba(0, 0, 0, 0) 100%);
+        }
+
+        .hero-image-layer img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center 26%;
+            filter: brightness(1.04) contrast(1.03) saturate(1.08);
+        }
+
+        /* Soft white cloud mist blending bottom of hero photo */
+        .hero-image-layer::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(ellipse at center 58%,
+                    rgba(255, 255, 255, 0.72) 0%,
+                    rgba(223, 238, 251, 0.35) 55%,
+                    transparent 85%);
+        }
+
+        /* ===========================================================
+           3. COREXY UPPER GANTRY RAIL & TELEMETRY SHUTTLE
+           =========================================================== */
+        .gantry-rail-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 22px;
+            z-index: 160;
+            pointer-events: none;
+            background: linear-gradient(180deg,
+                    rgba(23, 46, 77, 0.92) 0%,
+                    rgba(123, 181, 232, 0.88) 55%,
+                    rgba(226, 232, 240, 0.95) 85%,
+                    rgba(148, 163, 184, 0.6) 100%);
+            box-shadow: 0 4px 20px rgba(15, 23, 42, 0.16);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.8);
+            overflow: hidden;
+        }
+
+        /* Linear rail precision bolt holes & GT2 timing belt teeth */
+        .gantry-rail-bar::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 5px;
+            height: 5px;
+            background: repeating-linear-gradient(90deg,
+                    rgba(15, 23, 42, 0.55) 0px,
+                    rgba(15, 23, 42, 0.55) 4px,
+                    rgba(255, 255, 255, 0.25) 4px,
+                    rgba(255, 255, 255, 0.25) 8px);
+        }
+
+        .gantry-rail-bar::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 3px;
+            height: 4px;
+            background: repeating-linear-gradient(90deg,
+                    transparent 0px,
+                    transparent 36px,
+                    rgba(15, 23, 42, 0.45) 36px,
+                    rgba(15, 23, 42, 0.45) 40px);
+        }
+
+        /* Sliding CoreXY Carriage Shuttle */
+        .gantry-shuttle {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 165;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            will-change: left;
+        }
+
+        .shuttle-block {
+            width: 116px;
+            height: 28px;
+            background: linear-gradient(180deg, #0f172a 0%, #1e293b 70%, #334155 100%);
+            border-radius: 0 0 12px 12px;
+            border: 1.5px solid rgba(255, 255, 255, 0.35);
+            border-top: none;
+            box-shadow: 0 8px 20px rgba(15, 23, 42, 0.35);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 10px;
+            position: relative;
+        }
+
+        .shuttle-led {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #38bdf8;
+            box-shadow: 0 0 10px #38bdf8;
+            transition: background 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .shuttle-block.gripping .shuttle-led {
+            background: var(--claw-red);
+            box-shadow: 0 0 12px var(--claw-red);
+        }
+
+        .shuttle-coords {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.62rem;
+            font-weight: 700;
+            color: #e2e8f0;
+            letter-spacing: 0.02em;
+            white-space: nowrap;
+        }
+
+        .shuttle-pulley {
+            width: 24px;
+            height: 8px;
+            background: linear-gradient(90deg, #475569, #cbd5e1, #475569);
+            border-radius: 0 0 6px 6px;
+            border: 1px solid #1e293b;
+        }
+
+        /* ===========================================================
+           4. PENDULUM CLAW + BRAIDED STEEL CABLE ASSEMBLY
+           =========================================================== */
+        .claw-pendulum {
+            position: absolute;
+            top: 28px;
+            /* Anchored directly below the gantry shuttle pulley */
+            left: 50%;
+            width: 0;
+            height: 0;
+            z-index: 155;
+            pointer-events: none;
+            transform-origin: 0 0;
+            will-change: transform, left;
+        }
+
+        /* Braided steel cable that extends from shuttle to claw shackle */
+        .crane-rope {
+            position: absolute;
+            top: 0;
+            left: 0;
+            transform: translateX(-50%);
+            width: 5px;
+            height: 60px;
+            pointer-events: none;
+            will-change: height;
+            background: repeating-linear-gradient(35deg,
+                    #334155 0px,
+                    #475569 2px,
+                    #cbd5e1 3px,
+                    #f8fafc 4px,
+                    #64748b 6px);
+            box-shadow: 2px 0 6px rgba(15, 23, 42, 0.25);
+            border-radius: 2px;
+        }
+
+        /* The Claw itself hangs at the bottom of crane-rope */
+        .the-claw {
+            position: absolute;
+            left: 0;
+            top: 40px;
+            transform: translate(-50%, 0);
+            width: 265px;
+            height: 265px;
+            pointer-events: none;
+            will-change: top, transform, filter;
+            filter: drop-shadow(0 26px 38px rgba(15, 23, 42, 0.36));
+            transition: filter 0.35s ease;
+        }
+
+        .the-claw img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            transform-origin: 50% 18%;
+            will-change: transform;
+            transition: transform 0.42s var(--ease-spring);
+            user-select: none;
+            -webkit-user-drag: none;
+        }
+
+        /* Subtle crimson halo when gripping */
+        .the-claw::after {
+            content: '';
+            position: absolute;
+            left: 50%;
+            bottom: 12%;
+            transform: translateX(-50%) scale(0.7);
+            width: 130px;
+            height: 130px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(225, 29, 72, 0.38) 0%, transparent 72%);
+            opacity: 0;
+            transition: opacity 0.35s ease, transform 0.45s var(--ease-spring);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .the-claw.gripping {
+            filter: drop-shadow(0 22px 44px rgba(225, 29, 72, 0.38)) drop-shadow(0 12px 24px rgba(15, 23, 42, 0.32));
+        }
+
+        .the-claw.gripping::after {
+            opacity: 1;
+            transform: translateX(-50%) scale(1.15);
+        }
+
+        .the-claw.gripping img {
+            transform: scale(0.89, 1.07);
+            animation: clawLockPulse 0.48s var(--ease-out-expo);
+        }
+
+        @keyframes clawLockPulse {
+            0% {
+                transform: scale(1.04, 0.96);
+            }
+
+            35% {
+                transform: scale(0.83, 1.11);
+            }
+
+            70% {
+                transform: scale(0.92, 1.05);
+            }
+
+            100% {
+                transform: scale(0.89, 1.07);
+            }
+        }
+
+        /* ===========================================================
+           5. PERSISTENT FLOATING HEADER & LIVE TELEMETRY BAR
+           =========================================================== */
+        .site-header {
+            position: absolute;
+            top: 34px;
+            left: 0;
+            right: 0;
+            z-index: 240;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 28px;
+            max-width: 1260px;
+            margin: 0 auto;
+            pointer-events: none;
+        }
+
+        .site-header>* {
+            pointer-events: auto;
+        }
+
+        .brand-pill {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: var(--glass-bg-strong);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            padding: 9px 20px 9px 14px;
+            border-radius: 999px;
+            border: 1.5px solid var(--glass-border);
+            box-shadow: 0 10px 30px -6px rgba(15, 23, 42, 0.12);
+            cursor: pointer;
+            transition: transform 0.25s var(--ease-out-expo), box-shadow 0.25s ease;
+        }
+
+        .brand-pill:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 14px 34px -6px rgba(15, 23, 42, 0.18);
+        }
+
+        .brand-icon-badge {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+            border: 1px solid rgba(2, 132, 199, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.8);
+        }
+
+        .brand-text h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.02rem;
+            font-weight: 900;
+            color: var(--text-dark);
+            letter-spacing: -0.02em;
+            line-height: 1.05;
+        }
+
+        .brand-text p {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.63rem;
+            color: var(--machine-blue-deep);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-top: 2px;
+        }
+
+        /* Center Live Telemetry Pill */
+        .telemetry-pill {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            background: rgba(15, 23, 42, 0.84);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            color: #f8fafc;
+            padding: 8px 18px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            box-shadow: 0 12px 30px -8px rgba(15, 23, 42, 0.35);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.72rem;
+        }
+
+        .telemetry-status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent-emerald);
+            box-shadow: 0 0 10px var(--accent-emerald);
+            animation: statusBlink 2s infinite ease-in-out;
+        }
+
+        .telemetry-status-dot.engaged {
+            background: var(--claw-red);
+            box-shadow: 0 0 12px var(--claw-red);
+        }
+
+        @keyframes statusBlink {
+
+            0%,
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+
+            50% {
+                opacity: 0.55;
+                transform: scale(0.85);
+            }
+        }
+
+        .telemetry-divider {
+            width: 1px;
+            height: 14px;
+            background: rgba(255, 255, 255, 0.18);
+        }
+
+        .telemetry-metric {
+            color: #94a3b8;
+        }
+
+        .telemetry-metric strong {
+            color: #ffffff;
+            font-weight: 700;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-glass {
+            background: var(--glass-bg-strong);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            border: 1.5px solid var(--glass-border);
+            color: var(--text-dark);
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.82rem;
+            font-weight: 700;
+            padding: 9px 18px;
+            border-radius: 999px;
+            cursor: pointer;
+            transition: all 0.25s var(--ease-out-expo);
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            box-shadow: 0 8px 20px -6px rgba(15, 23, 42, 0.10);
+            text-decoration: none;
+        }
+
+        .btn-glass:hover {
+            border-color: var(--machine-blue-deep);
+            color: var(--machine-blue-deep);
+            transform: translateY(-2px);
+            box-shadow: 0 12px 26px -6px rgba(2, 132, 199, 0.22);
+        }
+
+        .btn-glass.active-mode {
+            background: var(--claw-navy);
+            color: #ffffff;
+            border-color: #38bdf8;
+            box-shadow: 0 0 24px rgba(56, 189, 248, 0.45);
+        }
+
+        .btn-cta {
+            background: linear-gradient(135deg, var(--claw-red) 0%, #be123c 100%);
+            color: #ffffff;
+            border: 1.5px solid rgba(255, 255, 255, 0.35);
+            box-shadow: 0 10px 26px -4px rgba(225, 29, 72, 0.45);
+        }
+
+        .btn-cta:hover {
+            background: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);
+            border-color: rgba(255, 255, 255, 0.7);
+            box-shadow: 0 16px 34px -4px rgba(225, 29, 72, 0.6);
+            transform: translateY(-2px) scale(1.02);
+            color: #ffffff;
+        }
+
+        /* ===========================================================
+           6. INTERACTIVE FLOATING PRIZE CAPSULES (FREE PLAY & AMBIENT)
+           =========================================================== */
+        .capsule-layer {
+            position: absolute;
+            inset: 0;
+            z-index: 140;
+            pointer-events: none;
+        }
+
+        .prize-capsule {
+            position: absolute;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            pointer-events: auto;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.45rem;
+            background: radial-gradient(circle at 32% 28%,
+                    rgba(255, 255, 255, 0.95) 0%,
+                    rgba(255, 255, 255, 0.65) 45%,
+                    var(--cap-tint, rgba(123, 181, 232, 0.45)) 100%);
+            border: 2px solid rgba(255, 255, 255, 0.92);
+            box-shadow:
+                0 14px 28px -6px rgba(15, 23, 42, 0.18),
+                inset 0 -6px 12px rgba(255, 255, 255, 0.6),
+                inset 0 3px 6px rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(6px);
+            transition: transform 0.3s var(--ease-spring), box-shadow 0.3s ease;
+            animation: floatCapsule 5s ease-in-out infinite;
+            user-select: none;
+        }
+
+        /* Equator seam of gachapon capsule */
+        .prize-capsule::before {
+            content: '';
+            position: absolute;
+            left: 3px;
+            right: 3px;
+            top: 50%;
+            height: 2px;
+            background: rgba(255, 255, 255, 0.85);
+            border-radius: 99px;
+            pointer-events: none;
+        }
+
+        .prize-capsule:hover {
+            transform: scale(1.18) translateY(-4px);
+            box-shadow:
+                0 18px 36px -6px rgba(225, 29, 72, 0.35),
+                0 0 0 4px rgba(255, 255, 255, 0.6);
+        }
+
+        .prize-capsule.caught {
+            animation: none;
+            transition: none;
+            z-index: 158;
+        }
+
+        @keyframes floatCapsule {
+
+            0%,
+            100% {
+                transform: translateY(0px) rotate(-4deg);
+            }
+
+            50% {
+                transform: translateY(-12px) rotate(5deg);
+            }
+        }
+
+        /* Toast notification when a capsule is caught */
+        .catch-toast {
+            position: absolute;
+            bottom: 28px;
+            left: 50%;
+            transform: translateX(-50%) translateY(30px);
+            z-index: 320;
+            background: rgba(15, 23, 42, 0.92);
+            backdrop-filter: blur(16px);
+            color: #ffffff;
+            padding: 12px 24px;
+            border-radius: 999px;
+            border: 1.5px solid rgba(56, 189, 248, 0.5);
+            box-shadow: 0 20px 40px -10px rgba(15, 23, 42, 0.45);
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.88rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.4s var(--ease-spring);
+        }
+
+        .catch-toast.visible {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* ===========================================================
+           7. STORY SECTIONS — FULL-VIEWPORT CHOREOGRAPHED PANELS
+           =========================================================== */
+        .story-section {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            opacity: 0;
+            transform: translate3d(0, 110px, 0) rotate(-3.5deg) scale(0.90);
+            pointer-events: none;
+            padding: 84px 24px 36px;
+        }
+
+        .story-section.active {
+            opacity: 1;
+            transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+            pointer-events: auto;
+            animation: cardThrowIn 0.78s var(--ease-out-expo) forwards;
+        }
+
+        @keyframes cardThrowIn {
+            0% {
+                opacity: 0;
+                transform: translate3d(0, 110px, 0) rotate(-4.5deg) scale(0.88);
+            }
+
+            42% {
+                opacity: 1;
+                transform: translate3d(0, -14px, 0) rotate(1.6deg) scale(1.018);
+            }
+
+            68% {
+                opacity: 1;
+                transform: translate3d(0, 6px, 0) rotate(-0.7deg) scale(0.995);
+            }
+
+            85% {
+                opacity: 1;
+                transform: translate3d(0, -2px, 0) rotate(0.25deg) scale(1.002);
+            }
+
+            100% {
+                opacity: 1;
+                transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+            }
+        }
+
+        .story-section.exiting-up {
+            opacity: 0;
+            transform: translate3d(0, -95px, 0) rotate(2.5deg) scale(0.92);
+            transition: opacity 0.45s ease, transform 0.45s ease;
+        }
+
+        .story-section.exiting-down {
+            opacity: 0;
+            transform: translate3d(0, 95px, 0) rotate(-2.5deg) scale(0.92);
+            transition: opacity 0.45s ease, transform 0.45s ease;
+        }
+
+        /* ===========================================================
+           SECTION 0: SCENIC HERO STAGE
+           =========================================================== */
+        .hero-card-stage {
+            text-align: center;
+            max-width: 820px;
+            width: 100%;
+            margin-top: 12vh;
+            padding: 38px 44px;
+            border-radius: 36px;
+            background: linear-gradient(180deg,
+                    rgba(255, 255, 255, 0.84) 0%,
+                    rgba(255, 255, 255, 0.94) 100%);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 2px solid rgba(255, 255, 255, 0.96);
+            box-shadow:
+                0 40px 100px -20px rgba(15, 23, 42, 0.20),
+                0 12px 32px -8px rgba(2, 132, 199, 0.12),
+                inset 0 2px 4px rgba(255, 255, 255, 1);
+            position: relative;
+        }
+
+        .hero-eyebrow-row {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(224, 242, 254, 0.9);
+            border: 1px solid rgba(2, 132, 199, 0.22);
+            padding: 6px 16px;
+            border-radius: 999px;
+            margin-bottom: 14px;
+        }
+
+        .hero-handwritten {
+            font-family: 'Caveat', cursive;
+            font-size: 1.45rem;
+            font-weight: 700;
+            color: var(--claw-red);
+            line-height: 1;
+        }
+
+        .hero-tag-sep {
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background: #94a3b8;
+        }
+
+        .hero-edition-code {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: var(--machine-blue-deep);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .hero-headline {
+            font-family: 'Outfit', sans-serif;
+            font-size: clamp(2.15rem, 4.6vw, 3.55rem);
+            font-weight: 900;
+            line-height: 1.06;
+            letter-spacing: -0.035em;
+            color: var(--text-dark);
+            margin-bottom: 16px;
+        }
+
+        .hero-headline .accent-sky {
+            background: linear-gradient(135deg, #0284c7 0%, #38bdf8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero-headline .accent-red {
+            color: var(--claw-red);
+        }
+
+        .hero-sub {
+            font-size: 1.04rem;
+            color: var(--text-body);
+            line-height: 1.65;
+            max-width: 640px;
+            margin: 0 auto 24px;
+            font-weight: 500;
+        }
+
+        /* Spec Telemetry Ribbon inside Hero */
+        .hero-spec-ribbon {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin: 0 auto 26px;
+            max-width: 690px;
+            background: rgba(248, 250, 252, 0.85);
+            border: 1px solid rgba(226, 232, 240, 0.95);
+            border-radius: 18px;
+            padding: 12px 16px;
+        }
+
+        .hero-spec-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            border-right: 1px solid #e2e8f0;
+            padding: 0 8px;
+        }
+
+        .hero-spec-item:last-child {
+            border-right: none;
+        }
+
+        .hero-spec-val {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.05rem;
+            font-weight: 900;
+            color: var(--text-dark);
+            letter-spacing: -0.02em;
+        }
+
+        .hero-spec-lbl {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.64rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-top: 2px;
+        }
+
+        .hero-cta-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            flex-wrap: wrap;
+        }
+
+        .scroll-cue {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 14px 30px;
+            background: linear-gradient(135deg, var(--claw-red) 0%, #be123c 100%);
+            border: 1.5px solid rgba(255, 255, 255, 0.4);
+            border-radius: 999px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.94rem;
+            font-weight: 800;
+            color: #ffffff;
+            cursor: pointer;
+            box-shadow: 0 12px 30px -6px rgba(225, 29, 72, 0.48);
+            transition: all 0.28s var(--ease-out-expo);
+        }
+
+        .scroll-cue:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 18px 38px -6px rgba(225, 29, 72, 0.62);
+        }
+
+        .scroll-cue .arrow {
+            animation: bounceDown 1.5s infinite ease-in-out;
+            display: inline-block;
+        }
+
+        @keyframes bounceDown {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(5px);
+            }
+        }
+
+        /* ===========================================================
+           SECTIONS 1–4: MECHANICAL FEATURE CARDS HELD BY THE CLAW
+           =========================================================== */
+        .story-card-wrapper {
+            position: relative;
+            max-width: 960px;
+            width: 100%;
+            margin-top: 72px;
+            /* Leave room above for the claw & shackle */
+            transform-style: preserve-3d;
+            will-change: transform;
+        }
+
+        /* Physical CNC Lift Shackle at the exact grab point on top of the card */
+        .card-lift-shackle {
+            position: absolute;
+            top: -28px;
+            left: var(--shackle-x, 34%);
+            transform: translateX(-50%);
+            width: 68px;
+            height: 30px;
+            z-index: 12;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+            pointer-events: none;
+        }
+
+        .shackle-ring {
+            width: 34px;
+            height: 22px;
+            border: 4px solid #64748b;
+            border-bottom: none;
+            border-radius: 18px 18px 0 0;
+            background: rgba(255, 255, 255, 0.5);
+            box-shadow: inset 0 2px 3px rgba(255, 255, 255, 0.9), 0 -2px 8px rgba(15, 23, 42, 0.12);
+            transition: border-color 0.35s ease, box-shadow 0.35s ease, transform 0.35s var(--ease-spring);
+        }
+
+        .shackle-base {
+            width: 64px;
+            height: 10px;
+            background: linear-gradient(90deg, #94a3b8, #f8fafc, #94a3b8);
+            border: 1.5px solid #64748b;
+            border-radius: 6px 6px 0 0;
+            box-shadow: 0 -2px 6px rgba(15, 23, 42, 0.1);
+            transition: all 0.35s ease;
+        }
+
+        .story-card.claw-attached .shackle-ring {
+            border-color: var(--claw-red);
+            box-shadow: 0 0 18px rgba(225, 29, 72, 0.55), inset 0 2px 4px rgba(255, 255, 255, 0.9);
+            transform: translateY(-2px) scale(1.05);
+        }
+
+        .story-card.claw-attached .shackle-base {
+            background: linear-gradient(90deg, var(--claw-navy), var(--claw-red), var(--claw-navy));
+            border-color: var(--claw-red);
+        }
+
+        .story-card {
+            background: var(--glass-bg-strong);
+            backdrop-filter: blur(28px);
+            -webkit-backdrop-filter: blur(28px);
+            border: 2px solid var(--glass-border);
+            border-radius: 30px;
+            box-shadow: var(--glass-shadow);
+            width: 100%;
+            overflow: hidden;
+            position: relative;
+            transition: box-shadow 0.4s ease, border-color 0.4s ease;
+        }
+
+        .story-card.claw-attached {
+            border-color: rgba(225, 29, 72, 0.35);
+            box-shadow:
+                0 46px 110px -24px rgba(15, 23, 42, 0.28),
+                0 0 40px -10px rgba(225, 29, 72, 0.22),
+                inset 0 1px 2px rgba(255, 255, 255, 1);
+        }
+
+        /* Specular mouse glare overlay */
+        .card-glare {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 20;
+            background: radial-gradient(550px circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
+                    rgba(255, 255, 255, 0.45),
+                    transparent 45%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .story-card:hover .card-glare {
+            opacity: 1;
+        }
+
+        /* Top glowing energy rail on card */
+        .story-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 8%;
+            right: 8%;
+            height: 4px;
+            background: linear-gradient(90deg, transparent, var(--claw-red), #38bdf8, var(--claw-red), transparent);
+            opacity: 0;
+            transition: opacity 0.4s ease;
+            z-index: 15;
+        }
+
+        .story-card.claw-attached::before {
+            opacity: 1;
+        }
+
+        .card-bracket {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 11px 28px;
+            background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+            border-bottom: 1px solid #e2e8f0;
+            transition: all 0.35s ease;
+        }
+
+        .story-card.claw-attached .card-bracket {
+            background: linear-gradient(90deg, #fff1f2 0%, #f0f9ff 50%, #fff1f2 100%);
+            border-color: rgba(225, 29, 72, 0.2);
+        }
+
+        .bracket-left,
+        .bracket-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .bracket-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #94a3b8;
+            box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.28);
+            transition: all 0.3s ease;
+        }
+
+        .story-card.claw-attached .bracket-dot {
+            background: var(--claw-red);
+            box-shadow: 0 0 8px rgba(225, 29, 72, 0.6);
+        }
+
+        .bracket-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.72rem;
+            font-weight: 800;
+            color: var(--text-muted);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            transition: color 0.3s ease;
+        }
+
+        .story-card.claw-attached .bracket-label {
+            color: var(--claw-red);
+        }
+
+        .bracket-telemetry {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.68rem;
+            font-weight: 600;
+            color: #0284c7;
+            background: rgba(224, 242, 254, 0.8);
+            padding: 3px 10px;
+            border-radius: 999px;
+            border: 1px solid rgba(2, 132, 199, 0.2);
+        }
+
+        .card-body {
+            display: grid;
+            grid-template-columns: 1.08fr 1fr;
+            gap: 32px;
+            padding: 28px 34px 32px;
+            align-items: center;
+        }
+
+        .card-body.reversed {
+            grid-template-columns: 1fr 1.08fr;
+            direction: rtl;
+        }
+
+        .card-body.reversed>* {
+            direction: ltr;
+        }
+
+        .card-image-wrap {
+            position: relative;
+            border-radius: 22px;
+            overflow: hidden;
+            border: 3px solid #ffffff;
+            box-shadow:
+                0 20px 40px -12px rgba(15, 23, 42, 0.22),
+                0 4px 12px rgba(15, 23, 42, 0.08);
+            aspect-ratio: 16 / 10;
+            background: #e2e8f0;
+            cursor: zoom-in;
+            group: image;
+        }
+
+        .card-image-wrap img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            transition: transform 0.7s var(--ease-out-expo), filter 0.4s ease;
+        }
+
+        .card-image-wrap:hover img {
+            transform: scale(1.055);
+        }
+
+        /* Floating caption & zoom pill inside image */
+        .image-overlay-bar {
+            position: absolute;
+            bottom: 12px;
+            left: 12px;
+            right: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            pointer-events: none;
+        }
+
+        .image-tag-pill {
+            background: rgba(15, 23, 42, 0.76);
+            backdrop-filter: blur(12px);
+            color: #ffffff;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.66rem;
+            font-weight: 600;
+            padding: 5px 11px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            letter-spacing: 0.04em;
+        }
+
+        .image-zoom-hint {
+            background: rgba(255, 255, 255, 0.92);
+            color: var(--text-dark);
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.7rem;
+            font-weight: 800;
+            padding: 5px 11px;
+            border-radius: 999px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            transition: transform 0.25s ease;
+        }
+
+        .card-image-wrap:hover .image-zoom-hint {
+            transform: scale(1.06);
+            background: var(--claw-red);
+            color: #ffffff;
+        }
+
+        .card-text {
+            display: flex;
+            flex-direction: column;
+            gap: 11px;
+        }
+
+        .pill-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #e0f2fe;
+            color: #0369a1;
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.72rem;
+            font-weight: 800;
+            padding: 5px 14px;
+            border-radius: 999px;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            transition: all 0.3s ease;
+        }
+
+        .story-card.claw-attached .pill {
+            background: #ffe4e6;
+            color: var(--claw-red);
+        }
+
+        .pill-secondary {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.68rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            background: #f1f5f9;
+            padding: 4px 11px;
+            border-radius: 999px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .card-text h3 {
+            font-family: 'Outfit', sans-serif;
+            font-size: clamp(1.38rem, 2.2vw, 1.75rem);
+            font-weight: 900;
+            letter-spacing: -0.025em;
+            color: var(--text-dark);
+            line-height: 1.16;
+        }
+
+        .card-text p {
+            font-size: 0.94rem;
+            color: var(--text-body);
+            line-height: 1.62;
+        }
+
+        /* Mini Spec Metrics Bar inside Story Card */
+        .card-metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-top: 4px;
+            padding: 10px 12px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+        }
+
+        .card-metric {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .card-metric-val {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.96rem;
+            font-weight: 900;
+            color: var(--text-dark);
+        }
+
+        .card-metric-lbl {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.62rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 7px;
+            margin-top: 4px;
+        }
+
+        .chip {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 5px 11px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: #334155;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            box-shadow: 0 2px 5px rgba(15, 23, 42, 0.03);
+        }
+
+        /* ===========================================================
+           SECTION 5: BESPOKE COMMISSION & EDITION CONFIGURATOR FINALE
+           =========================================================== */
+        .finale-card {
+            background: var(--glass-bg-strong);
+            backdrop-filter: blur(28px);
+            -webkit-backdrop-filter: blur(28px);
+            border: 2px solid var(--glass-border);
+            border-radius: 34px;
+            box-shadow: var(--glass-shadow);
+            max-width: 980px;
+            width: 100%;
+            padding: 36px 42px;
+            text-align: center;
+            position: relative;
+            margin-top: 44px;
+        }
+
+        .finale-handwritten {
+            font-family: 'Caveat', cursive;
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--claw-red);
+            margin-bottom: 4px;
+        }
+
+        .finale-headline {
+            font-family: 'Outfit', sans-serif;
+            font-size: clamp(1.85rem, 3.6vw, 2.75rem);
+            font-weight: 900;
+            line-height: 1.1;
+            letter-spacing: -0.03em;
+            color: var(--text-dark);
+            margin-bottom: 10px;
+        }
+
+        .finale-sub {
+            font-size: 0.98rem;
+            color: var(--text-body);
+            line-height: 1.6;
+            max-width: 650px;
+            margin: 0 auto 22px;
+        }
+
+        /* Interactive Bespoke Edition Selector */
+        .editions-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 24px;
+            text-align: left;
+        }
+
+        .edition-option {
+            background: #f8fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 18px;
+            padding: 14px;
+            cursor: pointer;
+            transition: all 0.25s var(--ease-out-expo);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .edition-option:hover {
+            transform: translateY(-3px);
+            border-color: #94a3b8;
+            background: #ffffff;
+        }
+
+        .edition-option.selected {
+            background: #ffffff;
+            border-color: var(--claw-red);
+            box-shadow: 0 14px 28px -8px rgba(225, 29, 72, 0.22);
+        }
+
+        .edition-swatches {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .swatch-dot {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            border: 2px solid #ffffff;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.18);
+        }
+
+        .edition-badge {
+            margin-left: auto;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.62rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .edition-option.selected .edition-badge {
+            color: var(--claw-red);
+        }
+
+        .edition-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.92rem;
+            font-weight: 800;
+            color: var(--text-dark);
+        }
+
+        .edition-desc {
+            font-size: 0.74rem;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        .finale-btns {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .btn-large {
+            padding: 15px 34px;
+            font-size: 0.96rem;
+        }
+
+        /* ===========================================================
+           8. CHAPTER PROGRESS NAV (RIGHT RAIL)
+           =========================================================== */
+        .scroll-progress {
+            position: absolute;
+            right: 24px;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 300;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 14px;
+            background: rgba(255, 255, 255, 0.65);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            padding: 14px 10px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.9);
+            box-shadow: 0 10px 30px -6px rgba(15, 23, 42, 0.12);
+        }
+
+        .progress-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: rgba(148, 163, 184, 0.45);
+            border: 2px solid #ffffff;
+            cursor: pointer;
+            transition: all 0.3s var(--ease-out-expo);
+            position: relative;
+        }
+
+        .progress-dot:hover {
+            background: var(--machine-blue-deep);
+            transform: scale(1.25);
+        }
+
+        .progress-dot.active {
+            background: var(--claw-red);
+            transform: scale(1.45);
+            box-shadow: 0 0 14px rgba(225, 29, 72, 0.55);
+        }
+
+        .progress-dot::after {
+            content: attr(data-label);
+            position: absolute;
+            right: 26px;
+            top: 50%;
+            transform: translateY(-50%) translateX(6px);
+            white-space: nowrap;
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.72rem;
+            font-weight: 800;
+            color: var(--text-dark);
+            opacity: 0;
+            transition: all 0.22s ease;
+            pointer-events: none;
+            background: var(--glass-bg-strong);
+            padding: 5px 12px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
+        }
+
+        .progress-dot:hover::after {
+            opacity: 1;
+            transform: translateY(-50%) translateX(0);
+        }
+
+        /* ===========================================================
+           9. INTERACTIVE FREE-PLAY ARCADE DECK (BOTTOM-LEFT HUD)
+           =========================================================== */
+        .arcade-hud {
+            position: absolute;
+            bottom: 22px;
+            left: 24px;
+            z-index: 290;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(15, 23, 42, 0.88);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            padding: 8px 14px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            box-shadow: 0 16px 36px -8px rgba(15, 23, 42, 0.4);
+            color: #ffffff;
+        }
+
+        .hud-btn {
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            color: #ffffff;
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            font-size: 0.9rem;
+            font-weight: 800;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.18s ease;
+            user-select: none;
+        }
+
+        .hud-btn:hover {
+            background: rgba(56, 189, 248, 0.3);
+            border-color: #38bdf8;
+            transform: translateY(-1px);
+        }
+
+        .hud-btn:active {
+            transform: scale(0.92);
+        }
+
+        .hud-btn-grab {
+            background: linear-gradient(135deg, var(--claw-red), #be123c);
+            border-color: rgba(255, 255, 255, 0.4);
+            width: auto;
+            padding: 0 14px;
+            border-radius: 999px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.76rem;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            gap: 6px;
+            box-shadow: 0 4px 14px rgba(225, 29, 72, 0.45);
+        }
+
+        .hud-btn-grab:hover {
+            background: linear-gradient(135deg, #f43f5e, var(--claw-red));
+            border-color: #ffffff;
+        }
+
+        .hud-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.66rem;
+            color: #cbd5e1;
+            padding: 0 6px;
+        }
+
+        /* ===========================================================
+           10. PARTICLES & CINEMATIC OVERLAYS
+           =========================================================== */
+        .vignette {
+            position: absolute;
+            inset: 0;
+            z-index: 5;
+            pointer-events: none;
+            background: radial-gradient(ellipse at center, transparent 58%, rgba(15, 23, 42, 0.08) 100%);
+        }
+
+        .particle-layer {
+            position: absolute;
+            inset: 0;
+            z-index: 6;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .particle {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.85);
+            border-radius: 50%;
+            animation: driftParticle linear infinite;
+            will-change: transform;
+        }
+
+        @keyframes driftParticle {
+            0% {
+                transform: translate3d(0, 0, 0) scale(1);
+                opacity: 0;
+            }
+
+            15% {
+                opacity: 1;
+            }
+
+            85% {
+                opacity: 1;
+            }
+
+            100% {
+                transform: translate3d(var(--px-dx), var(--px-dy), 0) scale(0.3);
+                opacity: 0;
+            }
+        }
+
+        /* ===========================================================
+           11. MODALS: INQUIRY, TECH SPECS & LIGHTBOX
+           =========================================================== */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.68);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            z-index: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.28s ease;
+        }
+
+        .modal-overlay.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal-box {
+            background: #ffffff;
+            border-radius: 28px;
+            max-width: 540px;
+            width: 100%;
+            padding: 34px;
+            box-shadow: 0 32px 80px rgba(15, 23, 42, 0.35);
+            position: relative;
+            transform: translateY(20px) scale(0.94);
+            transition: transform 0.32s var(--ease-out-expo);
+            max-height: 92vh;
+            overflow-y: auto;
+        }
+
+        .modal-overlay.open .modal-box {
+            transform: translateY(0) scale(1);
+        }
+
+        .modal-box.wide {
+            max-width: 780px;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: #f1f5f9;
+            border: none;
+            border-radius: 50%;
+            width: 36px;
+            height: 36px;
+            font-size: 1.05rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            transition: all 0.2s ease;
+        }
+
+        .modal-close:hover {
+            background: #ffe4e6;
+            color: var(--claw-red);
+            transform: rotate(90deg);
+        }
+
+        .form-group {
+            margin-top: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            text-align: left;
+        }
+
+        .form-group label {
+            font-size: 0.74rem;
+            font-weight: 800;
+            color: #334155;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 11px 14px;
+            border-radius: 12px;
+            border: 1.5px solid #e2e8f0;
+            font-family: inherit;
+            font-size: 0.92rem;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--claw-red);
+            box-shadow: 0 0 0 3px rgba(225, 29, 72, 0.14);
+        }
+
+        /* Tech Specs Table inside Spec Modal */
+        .specs-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+            margin-top: 18px;
+        }
+
+        .spec-card-box {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 14px 16px;
+        }
+
+        .spec-card-box h4 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.86rem;
+            font-weight: 800;
+            color: var(--machine-blue-deep);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 8px;
+        }
+
+        .spec-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            font-size: 0.82rem;
+        }
+
+        .spec-list li {
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px dashed #e2e8f0;
+            padding-bottom: 4px;
+            color: var(--text-body);
+        }
+
+        .spec-list li strong {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.78rem;
+            color: var(--text-dark);
+        }
+
+        /* Lightbox Modal */
+        .lightbox-img {
+            width: 100%;
+            max-height: 75vh;
+            object-fit: contain;
+            border-radius: 18px;
+            display: block;
+        }
+
+        .lightbox-caption {
+            margin-top: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            color: var(--text-dark);
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+        }
+
+        /* ===========================================================
+           RESPONSIVE BREAKPOINTS
+           =========================================================== */
+        @media (max-width: 960px) {
+            .telemetry-pill {
+                display: none;
+            }
+
+            .card-body,
+            .card-body.reversed {
+                grid-template-columns: 1fr;
+                gap: 18px;
+                padding: 20px 22px 24px;
+                direction: ltr;
+            }
+
+            .editions-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .hero-spec-ribbon {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 12px;
+            }
+
+            .hero-spec-item:nth-child(2) {
+                border-right: none;
+            }
+
+            .the-claw {
+                width: 210px;
+                height: 210px;
+            }
+
+            .specs-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .site-header {
+                padding: 0 14px;
+                top: 28px;
+            }
+
+            .brand-text p {
+                display: none;
+            }
+
+            .btn-glass span.hide-sm {
+                display: none;
+            }
+
+            .the-claw {
+                width: 165px;
+                height: 165px;
+            }
+
+            .hero-card-stage {
+                padding: 24px 20px;
+                margin-top: 14vh;
+            }
+
+            .finale-card {
+                padding: 24px 18px;
+            }
+
+            .editions-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .scroll-progress {
+                right: 10px;
+                padding: 10px 7px;
+                gap: 10px;
+            }
+
+            .arcade-hud {
+                left: 12px;
+                bottom: 12px;
+                padding: 6px 10px;
+            }
+
+            .hud-label {
+                display: none;
+            }
+
+            .prize-capsule {
+                width: 44px;
+                height: 44px;
+                font-size: 1.15rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Scroll Territory (drives the 6-chapter experience) -->
+    <div class="scroll-spacer"></div>
+
+    <!-- Fixed Viewport Cinema Stage -->
+    <div class="cinema-stage" id="cinemaStage">
+
+        <!-- 1. Dynamic Scenic Sky + Clouds -->
+        <div class="sky-layer" id="skyLayer"></div>
+        <div class="sunbeams" id="sunbeams"></div>
+        <div class="horizon-glow" id="horizonGlow"></div>
+
+        <!-- Cinematic Overlays & Floating Dust Motes -->
+        <div class="vignette"></div>
+        <div class="particle-layer" id="particleLayer"></div>
+
+        <!-- 2. Hero Interior Panorama (Full bleed, parallaxes & dissolves into clouds) -->
+        <div class="hero-image-layer" id="heroImage">
+            <img data-asset="claw_hero_noclaw.jpg" src="frontend/assets/claw_hero_noclaw.jpg"
+                onerror="this.onerror=null;this.src='assets/claw_hero_noclaw.jpg';"
+                alt="The CloudCatcher CoreXY Interior with Cloud Prize Bed" loading="eager">
+        </div>
+
+        <!-- 3. Upper CoreXY Linear Rail & Sliding Telemetry Shuttle -->
+        <div class="gantry-rail-bar"></div>
+        <div class="gantry-shuttle" id="gantryShuttle">
+            <div class="shuttle-block" id="shuttleBlock">
+                <span class="shuttle-led" id="shuttleLed"></span>
+                <span class="shuttle-coords" id="shuttleCoords">X:110.0 Z:018.0</span>
+            </div>
+            <div class="shuttle-pulley"></div>
+        </div>
+
+        <!-- 4. Connected Pendulum Rope + Candy-Red & Navy Claw -->
+        <div class="claw-pendulum" id="clawPendulum">
+            <div class="crane-rope" id="rope"></div>
+            <div class="the-claw" id="theClaw">
+                <img data-asset="claw_cutout.png" src="frontend/assets/claw_cutout.png"
+                    onerror="this.onerror=null;this.src='assets/claw_cutout.png';"
+                    alt="Candy Red & Anodized Navy 3-Finger Claw" id="clawImg">
+            </div>
+        </div>
+
+        <!-- 5. Floating Interactive Gachapon Prize Capsules -->
+        <div class="capsule-layer" id="capsuleLayer"></div>
+
+        <!-- 6. Persistent Header with Live Telemetry -->
+        <header class="site-header" id="siteHeader">
+            <div class="brand-pill" onclick="scrollToSection(0)" title="Back to Top">
+                <div class="brand-icon-badge">☁️</div>
+                <div class="brand-text">
+                    <h1>THE CLOUDCATCHER</h1>
+                    <p>Bespoke CoreXY Arcade</p>
+                </div>
+            </div>
+
+            <div class="telemetry-pill">
+                <span class="telemetry-status-dot" id="telemetryDot"></span>
+                <span class="telemetry-metric">STATE: <strong id="telemetryState">HOVER // READY</strong></span>
+                <span class="telemetry-divider"></span>
+                <span class="telemetry-metric">POS: <strong id="telemetryXYZ">X:110 Y:110 Z:18mm</strong></span>
+                <span class="telemetry-divider"></span>
+                <span class="telemetry-metric">COIL: <strong id="telemetryCoil">OPEN</strong></span>
+            </div>
+
+            <div class="header-actions">
+                <button class="btn-glass" id="btnSpecs" onclick="openSpecsModal()">
+                    📐 <span class="hide-sm">Specs</span>
+                </button>
+                <button class="btn-glass" id="btnSound">
+                    🔊 <span class="hide-sm">Sound</span>
+                </button>
+                <button class="btn-glass btn-cta" onclick="openModal()">
+                    ✨ Commission
+                </button>
+            </div>
+        </header>
+
+        <!-- ============ 6 CHOREOGRAPHED STORY SECTIONS ============ -->
+
+        <!-- CHAPTER 0: HERO INTRO -->
+        <section class="story-section active" id="sec0">
+            <div class="hero-card-stage">
+                <div class="hero-eyebrow-row">
+                    <span class="hero-handwritten">Handcrafted Kinetic Art ☁️</span>
+                    <span class="hero-tag-sep"></span>
+                    <span class="hero-edition-code">COREXY // HA-ESP32 SERIES</span>
+                </div>
+                <h2 class="hero-headline">
+                    Arcade Nostalgia, Reborn with<br>
+                    <span class="accent-sky">CoreXY Precision</span> &amp; <span class="accent-red">Soul</span>.
+                </h2>
+                <p class="hero-sub">
+                    Born from an upcycled CoreXY 3D printer architecture and transformed into a functional design piece.
+                    Featuring a powder-coated pastel sky-blue gantry, fluffy white cloud prize bed, CNC candy-red &amp;
+                    navy claw, and live Home Assistant telemetry.
+                </p>
+
+                <div class="hero-spec-ribbon">
+                    <div class="hero-spec-item">
+                        <span class="hero-spec-val">640 steps/mm</span>
+                        <span class="hero-spec-lbl">XY Resolution</span>
+                    </div>
+                    <div class="hero-spec-item">
+                        <span class="hero-spec-val">220×220×200</span>
+                        <span class="hero-spec-lbl">Work Envelope (mm)</span>
+                    </div>
+                    <div class="hero-spec-item">
+                        <span class="hero-spec-val">&lt; 32 dB</span>
+                        <span class="hero-spec-lbl">Whisper-Quiet Drive</span>
+                    </div>
+                    <div class="hero-spec-item">
+                        <span class="hero-spec-val">ESP32 + HA</span>
+                        <span class="hero-spec-lbl">Live WebSocket UI</span>
+                    </div>
+                </div>
+
+                <div class="hero-cta-row">
+                    <button class="scroll-cue" onclick="scrollToSection(1)">
+                        <span>Watch the Claw Descend</span>
+                        <span class="arrow">↓</span>
+                    </button>
+                    <button class="btn-glass" style="padding:14px 24px; font-size:0.9rem;"
+                        onclick="triggerManualGrab()">
+                        🕹️ Test Claw Drop (Space)
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- CHAPTER 1: COREXY KINEMATICS & CHASSIS -->
+        <section class="story-section" id="sec1">
+            <div class="story-card-wrapper" id="wrapper1" style="--shackle-x: 34%;">
+                <div class="card-lift-shackle">
+                    <div class="shackle-ring"></div>
+                    <div class="shackle-base"></div>
+                </div>
+                <div class="story-card" id="storyCard1">
+                    <div class="card-glare"></div>
+                    <div class="card-bracket">
+                        <div class="bracket-left">
+                            <div class="bracket-dot"></div>
+                            <span class="bracket-label">01 // COREXY KINEMATICS &amp; CHASSIS</span>
+                        </div>
+                        <span class="bracket-telemetry">640.0 STEPS/MM // 150 MM/S</span>
+                        <div class="bracket-right">
+                            <div class="bracket-dot"></div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="card-image-wrap"
+                            onclick="openLightbox('claw_gantry.jpg', '01 // Pastel Sky-Blue CoreXY Gantry & Linear Rail System')">
+                            <img data-asset="claw_gantry.jpg" src="frontend/assets/claw_gantry.jpg"
+                                onerror="this.onerror=null;this.src='assets/claw_gantry.jpg';"
+                                alt="Pastel Sky-Blue CoreXY Gantry with Stainless Linear Rails">
+                            <div class="image-overlay-bar">
+                                <span class="image-tag-pill">MGN12H LINEAR RAILS • GT2 BELTS</span>
+                                <span class="image-zoom-hint">⤢ Inspect</span>
+                            </div>
+                        </div>
+                        <div class="card-text">
+                            <div class="pill-row">
+                                <span class="pill">UPCYCLED COREXY DRIVE</span>
+                                <span class="pill-secondary">SILENT TMC STEPPERS</span>
+                            </div>
+                            <h3>Pastel Sky-Blue CoreXY Motion System</h3>
+                            <p>
+                                Engineered from a high-precision CoreXY 3D printer kinematics platform and finished in
+                                soft matte sky blue. Dual synchronized GT2 timing belts and stainless steel linear rails
+                                glide at up to 150&nbsp;mm/s with zero backlash and whisper-quiet elegance.
+                            </p>
+                            <div class="card-metrics-grid">
+                                <div class="card-metric">
+                                    <span class="card-metric-val">1.56 µm</span>
+                                    <span class="card-metric-lbl">Micro-Step Pitch</span>
+                                </div>
+                                <div class="card-metric">
+                                    <span class="card-metric-val">150 mm/s</span>
+                                    <span class="card-metric-lbl">Peak XY Velocity</span>
+                                </div>
+                                <div class="card-metric">
+                                    <span class="card-metric-val">50 steps/mm</span>
+                                    <span class="card-metric-lbl">Z-Winch Precision</span>
+                                </div>
+                            </div>
+                            <div class="chips">
+                                <span class="chip">☁️ Powder-Coated Sky Blue</span>
+                                <span class="chip">⚡ Differential CoreXY</span>
+                                <span class="chip">🤫 Silent Stepper Drivers</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- CHAPTER 2: CANDY RED CLAW & CLOUD PRIZE BED -->
+        <section class="story-section" id="sec2">
+            <div class="story-card-wrapper" id="wrapper2" style="--shackle-x: 66%;">
+                <div class="card-lift-shackle">
+                    <div class="shackle-ring"></div>
+                    <div class="shackle-base"></div>
+                </div>
+                <div class="story-card" id="storyCard2">
+                    <div class="card-glare"></div>
+                    <div class="card-bracket">
+                        <div class="bracket-left">
+                            <div class="bracket-dot"></div>
+                            <span class="bracket-label">02 // CNC GRIPPER &amp; CLOUD PRIZE BED</span>
+                        </div>
+                        <span class="bracket-telemetry">PWM FORCE // PROGRAMMABLE</span>
+                        <div class="bracket-right">
+                            <div class="bracket-dot"></div>
+                        </div>
+                    </div>
+                    <div class="card-body reversed">
+                        <div class="card-image-wrap"
+                            onclick="openLightbox('claw_closeup.jpg', '02 // Candy-Apple Red & Anodized Navy 3-Finger Claw over Cloud Bed')">
+                            <img data-asset="claw_closeup.jpg" src="frontend/assets/claw_closeup.jpg"
+                                onerror="this.onerror=null;this.src='assets/claw_closeup.jpg';"
+                                alt="Candy Red and Navy 3-Finger Claw Clasping Pastel Star Plushie">
+                            <div class="image-overlay-bar">
+                                <span class="image-tag-pill">ANODIZED 6061-T6 ALUMINUM</span>
+                                <span class="image-zoom-hint">⤢ Inspect</span>
+                            </div>
+                        </div>
+                        <div class="card-text">
+                            <div class="pill-row">
+                                <span class="pill">ACTUATOR &amp; ATMOSPHERE</span>
+                                <span class="pill-secondary">3-FINGER CNC LINKAGE</span>
+                            </div>
+                            <h3>Candy-Apple Red Claw Over a Cloud Bed</h3>
+                            <p>
+                                The centerpiece: an articulated 3-finger CNC aluminum claw anodized in glossy
+                                candy-apple red with a deep midnight-navy motor collar. Below, fluffy white cloud
+                                cushions cradle pastel plushies, custom keepsakes, and frosted gachapon capsules.
+                            </p>
+                            <div class="card-metrics-grid">
+                                <div class="card-metric">
+                                    <span class="card-metric-val">0–100%</span>
+                                    <span class="card-metric-lbl">Digital Grip Torque</span>
+                                </div>
+                                <div class="card-metric">
+                                    <span class="card-metric-val">200 mm</span>
+                                    <span class="card-metric-lbl">Vertical Z-Plunge</span>
+                                </div>
+                                <div class="card-metric">
+                                    <span class="card-metric-val">IR Beam</span>
+                                    <span class="card-metric-lbl">Optical Win Sensor</span>
+                                </div>
+                            </div>
+                            <div class="chips">
+                                <span class="chip">🔴 Candy Red &amp; Navy Collar</span>
+                                <span class="chip">☁️ Soft Cloud Cushion Bed</span>
+                                <span class="chip">🎯 Fair-Play Win Tuning</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- CHAPTER 3: ARCHITECTURAL CABINET & FLUSH ACRYLIC -->
+        <section class="story-section" id="sec3">
+            <div class="story-card-wrapper" id="wrapper3" style="--shackle-x: 36%;">
+                <div class="card-lift-shackle">
+                    <div class="shackle-ring"></div>
+                    <div class="shackle-base"></div>
+                </div>
+                <div class="story-card" id="storyCard3">
+                    <div class="card-glare"></div>
+                    <div class="card-bracket">
+                        <div class="bracket-left">
+                            <div class="bracket-dot"></div>
+                            <span class="bracket-label">03 // ARCHITECTURAL CABINETRY &amp; GLASS</span>
+                        </div>
+                        <span class="bracket-telemetry">360° CAST ACRYLIC // 3500K LED</span>
+                        <div class="bracket-right">
+                            <div class="bracket-dot"></div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="card-image-wrap"
+                            onclick="openLightbox('claw_showcase.jpg', '03 // The CloudCatcher Full Architectural Cabinet in Sunlit Space')">
+                            <img data-asset="claw_showcase.jpg" src="frontend/assets/claw_showcase.jpg"
+                                onerror="this.onerror=null;this.src='assets/claw_showcase.jpg';"
+                                alt="Full CloudCatcher Claw Machine in Modern Sunlit Living Space">
+                            <div class="image-overlay-bar">
+                                <span class="image-tag-pill">EXTERIOR CHROME STANDOFFS</span>
+                                <span class="image-zoom-hint">⤢ Inspect</span>
+                            </div>
+                        </div>
+                        <div class="card-text">
+                            <div class="pill-row">
+                                <span class="pill">GALLERY-GRADE CRAFTSMANSHIP</span>
+                                <span class="pill-secondary">BIRCH &amp; MATTE LACQUER</span>
+                            </div>
+                            <h3>Designed for Living Spaces, Not Dark Basements</h3>
+                            <p>
+                                Crystal-clear 4&nbsp;mm cast acrylic windows are exterior-mounted on polished stainless
+                                standoffs over a matte white, sky-blue, and natural birch cabinet. Diffused 3500K
+                                museum-grade LED lighting turns the machine into a glowing architectural sculpture.
+                            </p>
+                            <div class="card-metrics-grid">
+                                <div class="card-metric">
+                                    <span class="card-metric-val">4.0 mm</span>
+                                    <span class="card-metric-lbl">Optical Cast Acrylic</span>
+                                </div>
+                                <div class="card-metric">
+                                    <span class="card-metric-val">11 Scenes</span>
+                                    <span class="card-metric-lbl">Addressable RGBW</span>
+                                </div>
+                                <div class="card-metric">
+                                    <span class="card-metric-val">360°</span>
+                                    <span class="card-metric-lbl">Unobstructed View</span>
+                                </div>
+                            </div>
+                            <div class="chips">
+                                <span class="chip">🪟 Flush Exterior Acrylic</span>
+                                <span class="chip">✨ Warm Ambient LED Scenes</span>
+                                <span class="chip">🏡 Living-Room Statement Piece</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- CHAPTER 4: TACTILE ARCADE DECK & HOME ASSISTANT TELEMETRY -->
+        <section class="story-section" id="sec4">
+            <div class="story-card-wrapper" id="wrapper4" style="--shackle-x: 64%;">
+                <div class="card-lift-shackle">
+                    <div class="shackle-ring"></div>
+                    <div class="shackle-base"></div>
+                </div>
+                <div class="story-card" id="storyCard4">
+                    <div class="card-glare"></div>
+                    <div class="card-bracket">
+                        <div class="bracket-left">
+                            <div class="bracket-dot"></div>
+                            <span class="bracket-label">04 // CONTROL DECK &amp; HOME ASSISTANT OS</span>
+                        </div>
+                        <span class="bracket-telemetry">FASTAPI + WEBSOCKET // 60HZ</span>
+                        <div class="bracket-right">
+                            <div class="bracket-dot"></div>
+                        </div>
+                    </div>
+                    <div class="card-body reversed">
+                        <div class="card-image-wrap"
+                            onclick="openLightbox('claw_control.jpg', '04 // Tactile Arcade Control Console & Integrated Touchscreen UI')">
+                            <img data-asset="claw_control.jpg" src="frontend/assets/claw_control.jpg"
+                                onerror="this.onerror=null;this.src='assets/claw_control.jpg';"
+                                alt="CloudCatcher Arcade Joystick, Illuminated Button, and Flush Touchscreen">
+                            <div class="image-overlay-bar">
+                                <span class="image-tag-pill">HOME ASSISTANT ADD-ON NATIVE</span>
+                                <span class="image-zoom-hint">⤢ Inspect</span>
+                            </div>
+                        </div>
+                        <div class="card-text">
+                            <div class="pill-row">
+                                <span class="pill">SMART HOME &amp; TELEMETRY</span>
+                                <span class="pill-secondary">ESP32 + FASTAPI SERVER</span>
+                            </div>
+                            <h3>Analog Arcade Feel, Smart Home Brain</h3>
+                            <p>
+                                A brushed-aluminum and sky-blue control deck pairs an analog navy ball-top joystick and
+                                glowing crimson drop button with a flush glass touchscreen. Powered by an ESP32 and a
+                                native Home Assistant dashboard for remote jogging, lighting automation, and live win
+                                analytics.
+                            </p>
+                            <div class="card-metrics-grid">
+                                <div class="card-metric">
+                                    <span class="card-metric-val">Home Assistant</span>
+                                    <span class="card-metric-lbl">Native Add-On</span>
+                                </div>
+                                <div class="card-metric">
+                                    <span class="card-metric-val">Real-Time</span>
+                                    <span class="card-metric-lbl">WebSocket Telemetry</span>
+                                </div>
+                                <div class="card-metric">
+                                    <span class="card-metric-val">8-Bit / Hi-Fi</span>
+                                    <span class="card-metric-lbl">Custom Sound Engine</span>
+                                </div>
+                            </div>
+                            <div class="chips">
+                                <span class="chip">🕹️ Hall-Effect / Microswitch Stick</span>
+                                <span class="chip">🏠 Home Assistant Dashboard</span>
+                                <span class="chip">📊 Win-Rate &amp; Sensor Diagnostics</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- CHAPTER 5: BESPOKE COMMISSION & EDITION CONFIGURATOR -->
+        <section class="story-section" id="sec5">
+            <div class="finale-card">
+                <div class="finale-handwritten">Hand-built to order in Germany ✨</div>
+                <h2 class="finale-headline">Commission Your Own CloudCatcher</h2>
+                <p class="finale-sub">
+                    Every unit is individually crafted, calibrated, and tested. Select a signature edition below to
+                    pre-configure your inquiry—whether for a private residence, creative studio, or unforgettable event
+                    activation.
+                </p>
+
+                <!-- Interactive Edition Configurator -->
+                <div class="editions-grid" id="editionsGrid">
+                    <div class="edition-option selected"
+                        data-edition="CloudCatcher Original (Pastel Sky Blue / Candy Red Claw)"
+                        onclick="selectEdition(this)">
+                        <div class="edition-swatches">
+                            <span class="swatch-dot" style="background:#7bb5e8;"></span>
+                            <span class="swatch-dot" style="background:#e11d48;"></span>
+                            <span class="swatch-dot" style="background:#172e4d;"></span>
+                            <span class="edition-badge">01 // SIGNATURE</span>
+                        </div>
+                        <div class="edition-title">CloudCatcher Original</div>
+                        <div class="edition-desc">Pastel sky-blue CoreXY frame, white cloud backdrop, birch trim &amp;
+                            candy-red/navy claw.</div>
+                    </div>
+
+                    <div class="edition-option" data-edition="Atelier Alabaster & Brass (Warm Cream / Gold Claw / Oak)"
+                        onclick="selectEdition(this)">
+                        <div class="edition-swatches">
+                            <span class="swatch-dot" style="background:#f5ebe0;"></span>
+                            <span class="swatch-dot" style="background:#d97706;"></span>
+                            <span class="swatch-dot" style="background:#78350f;"></span>
+                            <span class="edition-badge">02 // LUXURY LOFT</span>
+                        </div>
+                        <div class="edition-title">Atelier Cream &amp; Brass</div>
+                        <div class="edition-desc">Warm alabaster chassis, champagne-gold anodized claw, white oak trim
+                            &amp; 2700K sunset glow.</div>
+                    </div>
+
+                    <div class="edition-option"
+                        data-edition="Tokyo Midnight Edition (Deep Navy / Cyber Crimson / Smoked Glass)"
+                        onclick="selectEdition(this)">
+                        <div class="edition-swatches">
+                            <span class="swatch-dot" style="background:#0f172a;"></span>
+                            <span class="swatch-dot" style="background:#f43f5e;"></span>
+                            <span class="swatch-dot" style="background:#38bdf8;"></span>
+                            <span class="edition-badge">03 // NIGHT ARCADE</span>
+                        </div>
+                        <div class="edition-title">Tokyo Midnight</div>
+                        <div class="edition-desc">Anodized midnight-navy frame, dynamic RGBW chase lighting &amp;
+                            candy-crimson claw.</div>
+                    </div>
+
+                    <div class="edition-option"
+                        data-edition="Bespoke Brand / Event Activation (Custom Colorway & Branded Capsules)"
+                        onclick="selectEdition(this)">
+                        <div class="edition-swatches">
+                            <span class="swatch-dot"
+                                style="background:conic-gradient(#e11d48, #f59e0b, #10b981, #38bdf8, #e11d48);"></span>
+                            <span class="swatch-dot" style="background:#ffffff;"></span>
+                            <span class="edition-badge">04 // BESPOKE</span>
+                        </div>
+                        <div class="edition-title">Custom Brand / Event</div>
+                        <div class="edition-desc">Custom RAL/Pantone powder coat, branded touchscreen UI &amp; custom
+                            prize capsules.</div>
+                    </div>
+                </div>
+
+                <div class="finale-btns">
+                    <button class="btn-glass btn-cta btn-large" onclick="openModal()">
+                        📩 Inquire for <span id="selectedEditionBtnLabel">CloudCatcher Original</span>
+                    </button>
+                    <button class="btn-glass btn-large" onclick="openSpecsModal()">
+                        📐 Full Technical Datasheet
+                    </button>
+                    <button class="btn-glass" onclick="scrollToSection(0)">
+                        ↺ Replay Journey
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- 7. Right-Rail Chapter Progress Indicator -->
+        <nav class="scroll-progress" id="scrollProgress" aria-label="Story Chapters">
+            <div class="progress-dot active" data-label="00 // Welcome" onclick="scrollToSection(0)"></div>
+            <div class="progress-dot" data-label="01 // CoreXY Kinematics" onclick="scrollToSection(1)"></div>
+            <div class="progress-dot" data-label="02 // Claw & Cloud Bed" onclick="scrollToSection(2)"></div>
+            <div class="progress-dot" data-label="03 // Architectural Glass" onclick="scrollToSection(3)"></div>
+            <div class="progress-dot" data-label="04 // Smart Control Deck" onclick="scrollToSection(4)"></div>
+            <div class="progress-dot" data-label="05 // Commission Yours" onclick="scrollToSection(5)"></div>
+        </nav>
+
+        <!-- 8. Interactive Mini Arcade Jog & Grab HUD (Bottom Left) -->
+        <div class="arcade-hud" id="arcadeHud" title="Interactive CoreXY Claw Control">
+            <button class="hud-btn" onpointerdown="startManualJog(-1)" onpointerup="stopManualJog()"
+                onpointerleave="stopManualJog()" title="Jog Claw Left (A)">◀</button>
+            <button class="hud-btn hud-btn-grab" onclick="triggerManualGrab()"
+                title="Drop Claw & Catch Capsule (Space)">
+                <span>🎯 DROP CLAW</span>
+            </button>
+            <button class="hud-btn" onpointerdown="startManualJog(1)" onpointerup="stopManualJog()"
+                onpointerleave="stopManualJog()" title="Jog Claw Right (D)">▶</button>
+            <span class="hud-label" id="hudScoreLabel">CAPSULES: 0/4</span>
+        </div>
+
+        <!-- Capsule Catch Notification Toast -->
+        <div class="catch-toast" id="catchToast">
+            <span id="catchToastIcon">🎉</span>
+            <span id="catchToastText">Prize Capsule Caught!</span>
+        </div>
+
+    </div>
+
+    <!-- ============ INQUIRY MODAL ============ -->
+    <div class="modal-overlay" id="inquiryModal">
+        <div class="modal-box">
+            <button class="modal-close" onclick="closeModal()">✕</button>
+            <div
+                style="display:inline-flex; align-items:center; gap:6px; background:#ffe4e6; color:#e11d48; font-family:'JetBrains Mono',monospace; font-size:0.68rem; font-weight:800; padding:4px 12px; border-radius:999px; margin-bottom:10px;">
+                BESPOKE BUILD &amp; EVENT COMMISSION
+            </div>
+            <h3
+                style="font-family:'Outfit',sans-serif; font-size:1.5rem; font-weight:900; color:#0f172a; margin-bottom:6px; letter-spacing:-0.02em;">
+                Reserve Your CloudCatcher
+            </h3>
+            <p style="font-size:0.86rem; color:#64748b; line-height:1.5;">
+                Share your vision, preferred colorway, or event timeline. We respond personally within 24–48 hours.
+            </p>
+            <form id="clawInquiryForm" onsubmit="handleSubmit(event)">
+                <input type="text" id="clawWebsiteUrl" name="website_url" style="display:none" tabindex="-1"
+                    autocomplete="off">
+                <div class="form-group">
+                    <label for="clawContactName">Your Name</label>
+                    <input id="clawContactName" type="text" class="form-input" placeholder="Alex Mercer" required>
+                </div>
+                <div class="form-group">
+                    <label for="clawContactEmail">Email Address</label>
+                    <input id="clawContactEmail" type="email" class="form-input" placeholder="alex@studio.com" required>
+                </div>
+                <div class="form-group">
+                    <label for="clawContactType">Inquiry &amp; Edition</label>
+                    <select id="clawContactType" class="form-input" style="background:white;">
+                        <option value="Custom Build — CloudCatcher Original (Pastel Sky Blue / Candy Red Claw)">Custom
+                            Build — CloudCatcher Original (Sky Blue &amp; Candy Red)</option>
+                        <option value="Custom Build — Atelier Alabaster & Brass (Warm Cream / Gold Claw / Oak)">Custom
+                            Build — Atelier Cream &amp; Brass Edition</option>
+                        <option
+                            value="Custom Build — Tokyo Midnight Edition (Deep Navy / Cyber Crimson / Smoked Glass)">
+                            Custom Build — Tokyo Midnight Edition</option>
+                        <option value="Bespoke Brand / Event Activation (Custom Colorway & Branded Capsules)">Event
+                            Rental / Branded Corporate Activation</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="clawContactMessage">Project Details</label>
+                    <textarea id="clawContactMessage" class="form-input" rows="3"
+                        placeholder="Tell us about your space, custom prize ideas, Smart Home integration preferences, or delivery country..."
+                        required></textarea>
+                </div>
+                <div id="clawContactFeedback"
+                    style="display:none; margin-top:12px; padding:10px 12px; border-radius:10px; font-size:0.84rem; line-height:1.45;">
+                </div>
+                <button id="clawContactSubmit" type="submit" class="btn-glass btn-cta"
+                    style="margin-top:18px; width:100%; justify-content:center; padding:13px; font-size:0.94rem;">
+                    ✨ Send Commission Inquiry
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ============ TECHNICAL SPECIFICATIONS DATASHEET MODAL ============ -->
+    <div class="modal-overlay" id="specsModal">
+        <div class="modal-box wide">
+            <button class="modal-close" onclick="closeSpecsModal()">✕</button>
+            <div
+                style="display:inline-flex; align-items:center; gap:6px; background:#e0f2fe; color:#0284c7; font-family:'JetBrains Mono',monospace; font-size:0.68rem; font-weight:800; padding:4px 12px; border-radius:999px; margin-bottom:8px;">
+                ENGINEERING DATASHEET // REV 1.0.11
+            </div>
+            <h3
+                style="font-family:'Outfit',sans-serif; font-size:1.55rem; font-weight:900; color:#0f172a; letter-spacing:-0.02em;">
+                The CloudCatcher — Technical Specifications
+            </h3>
+            <p style="font-size:0.86rem; color:#64748b; margin-top:4px;">
+                Upcycled from a CoreXY 3D printer motion stage and powered by an ESP32 + FastAPI Home Assistant
+                architecture.
+            </p>
+
+            <div class="specs-grid">
+                <div class="spec-card-box">
+                    <h4>01 // CoreXY Motion &amp; Axes</h4>
+                    <ul class="spec-list">
+                        <li><span>Kinematics</span><strong>Differential CoreXY</strong></li>
+                        <li><span>XY Step Resolution</span><strong>640.0 steps/mm</strong></li>
+                        <li><span>Z-Winch Resolution</span><strong>50.0 steps/mm</strong></li>
+                        <li><span>Max XY Travel Speed</span><strong>150.0 mm/s</strong></li>
+                        <li><span>Max Z Plunge Speed</span><strong>50.0 mm/s</strong></li>
+                        <li><span>Active Work Envelope</span><strong>220 × 220 × 200 mm</strong></li>
+                    </ul>
+                </div>
+
+                <div class="spec-card-box">
+                    <h4>02 // Claw &amp; Sensing</h4>
+                    <ul class="spec-list">
+                        <li><span>Gripper Architecture</span><strong>3-Finger CNC 6061 Aluminum</strong></li>
+                        <li><span>Finish</span><strong>Candy-Red &amp; Navy Anodized</strong></li>
+                        <li><span>Grip Actuation</span><strong>Variable PWM Solenoid/Servo</strong></li>
+                        <li><span>Limit Endstops</span><strong>X-Home, Y-Home, Z-Top, Z-Bot</strong></li>
+                        <li><span>Prize Detection</span><strong>Infrared Break-BeamChute</strong></li>
+                        <li><span>Safety</span><strong>Hardware &amp; Software E-Stop</strong></li>
+                    </ul>
+                </div>
+
+                <div class="spec-card-box">
+                    <h4>03 // Smart Home &amp; Electronics</h4>
+                    <ul class="spec-list">
+                        <li><span>Real-Time MCU</span><strong>ESP32 Dual-Core Wi-Fi</strong></li>
+                        <li><span>Host Server</span><strong>FastAPI + WebSocket (Port 8000)</strong></li>
+                        <li><span>Smart Home OS</span><strong>Home Assistant Add-On Native</strong></li>
+                        <li><span>Touch Interface</span><strong>Flush Player UI + Admin Dashboard</strong></li>
+                        <li><span>Audio Engine</span><strong>Hi-Fi Arcade + 8-Bit Sound Packs</strong></li>
+                        <li><span>LED Illumination</span><strong>11 Programmable RGBW Scenes</strong></li>
+                    </ul>
+                </div>
+
+                <div class="spec-card-box">
+                    <h4>04 // Cabinetry &amp; Materials</h4>
+                    <ul class="spec-list">
+                        <li><span>Chassis Finish</span><strong>Matte Pastel Sky-Blue (#7BB5E8)</strong></li>
+                        <li><span>Cabinet Body</span><strong>Matte Lacquer &amp; Natural Birch</strong></li>
+                        <li><span>Glazing</span><strong>4 mm Cast Acrylic (Flush Mount)</strong></li>
+                        <li><span>Hardware</span><strong>Polished Stainless Standoffs</strong></li>
+                        <li><span>Prize Bed</span><strong>Sculpted White Cloud Cushions</strong></li>
+                        <li><span>Control Console</span><strong>Navy Ball-Top Stick + LED Button</strong></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div style="margin-top:20px; display:flex; justify-content:flex-end; gap:10px;">
+                <button class="btn-glass" onclick="closeSpecsModal()">Close</button>
+                <button class="btn-glass btn-cta" onclick="closeSpecsModal(); openModal();">✨ Commission This
+                    Machine</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ HIGH-RES PHOTO LIGHTBOX MODAL ============ -->
+    <div class="modal-overlay" id="lightboxModal" onclick="closeLightbox()">
+        <div class="modal-box wide" style="max-width:960px; padding:18px; background:rgba(255,255,255,0.96);"
+            onclick="event.stopPropagation()">
+            <button class="modal-close" onclick="closeLightbox()" style="top:14px; right:14px; z-index:10;">✕</button>
+            <img id="lightboxImg" class="lightbox-img" src="" alt="High-Resolution Showcase View">
+            <div class="lightbox-caption">
+                <span id="lightboxTitle">01 // CoreXY Kinematics</span>
+                <button class="btn-glass btn-cta" style="padding:7px 16px; font-size:0.78rem;"
+                    onclick="closeLightbox(); openModal();">✨ Commission Similar Build</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ===========================================================
+        // 0. AUTOMATIC ASSET PATH RESOLVER (ROOT vs FRONTEND DEPLOY)
+        // ===========================================================
+        let ASSET_BASE = 'frontend/assets/';
+
+        (function detectAssetPath() {
+            const probe = new Image();
+            probe.onload = () => { ASSET_BASE = 'frontend/assets/'; };
+            probe.onerror = () => { ASSET_BASE = 'assets/'; };
+            probe.src = 'frontend/assets/cloud02.webp';
+        })();
+
+        function resolveAsset(filename) {
+            return ASSET_BASE + filename;
+        }
+
+        // ===========================================================
+        // 1. PROCEDURAL + ARCADE AUDIO ENGINE
+        // ===========================================================
+        class ClawAudio {
+            constructor() {
+                this.enabled = true;
+                this.ctx = null;
+            }
+            getCtx() {
+                if (!this.ctx) {
+                    const A = window.AudioContext || window.webkitAudioContext;
+                    if (A) this.ctx = new A();
+                }
+                if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+                return this.ctx;
+            }
+            playGrab() {
+                if (!this.enabled) return;
+                try {
+                    const ctx = this.getCtx();
+                    if (!ctx) return;
+                    const now = ctx.currentTime;
+                    // Precision solenoid click + servo lock
+                    const osc = ctx.createOscillator();
+                    const g = ctx.createGain();
+                    osc.connect(g); g.connect(ctx.destination);
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(280, now);
+                    osc.frequency.exponentialRampToValueAtTime(680, now + 0.11);
+                    g.gain.setValueAtTime(0.15, now);
+                    g.gain.exponentialRampToValueAtTime(0.008, now + 0.22);
+                    osc.start(now); osc.stop(now + 0.22);
+
+                    // Harmonic confirmation chime
+                    setTimeout(() => {
+                        const c = ctx.createOscillator();
+                        const cg = ctx.createGain();
+                        c.connect(cg); cg.connect(ctx.destination);
+                        c.type = 'sine';
+                        c.frequency.setValueAtTime(987.77, ctx.currentTime); // B5
+                        c.frequency.setValueAtTime(1318.51, ctx.currentTime + 0.07); // E6
+                        cg.gain.setValueAtTime(0.10, ctx.currentTime);
+                        cg.gain.exponentialRampToValueAtTime(0.005, ctx.currentTime + 0.32);
+                        c.start(); c.stop(ctx.currentTime + 0.32);
+                    }, 90);
+                } catch (e) { }
+            }
+            playWhoosh() {
+                if (!this.enabled) return;
+                try {
+                    const ctx = this.getCtx();
+                    if (!ctx) return;
+                    const now = ctx.currentTime;
+                    const osc = ctx.createOscillator();
+                    const g = ctx.createGain();
+                    osc.connect(g); g.connect(ctx.destination);
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(140, now);
+                    osc.frequency.exponentialRampToValueAtTime(260, now + 0.14);
+                    osc.frequency.exponentialRampToValueAtTime(95, now + 0.34);
+                    g.gain.setValueAtTime(0.05, now);
+                    g.gain.exponentialRampToValueAtTime(0.005, now + 0.34);
+                    osc.start(now); osc.stop(now + 0.34);
+                } catch (e) { }
+            }
+            playWinFanfare() {
+                if (!this.enabled) return;
+                try {
+                    const ctx = this.getCtx();
+                    if (!ctx) return;
+                    const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+                    notes.forEach((freq, idx) => {
+                        const osc = ctx.createOscillator();
+                        const g = ctx.createGain();
+                        osc.connect(g); g.connect(ctx.destination);
+                        osc.type = 'triangle';
+                        const t = ctx.currentTime + idx * 0.075;
+                        osc.frequency.setValueAtTime(freq, t);
+                        g.gain.setValueAtTime(0.14, t);
+                        g.gain.exponentialRampToValueAtTime(0.006, t + 0.32);
+                        osc.start(t); osc.stop(t + 0.32);
+                    });
+                } catch (e) { }
+            }
+        }
+
+        const audio = new ClawAudio();
+        const btnSound = document.getElementById('btnSound');
+        btnSound.addEventListener('click', () => {
+            audio.enabled = !audio.enabled;
+            btnSound.innerHTML = audio.enabled
+                ? '🔊 <span class="hide-sm">Sound</span>'
+                : '🔇 <span class="hide-sm">Muted</span>';
+        });
+
+        // ===========================================================
+        // 2. SCROLL-DRIVEN COREXY & PENDULUM PHYSICS ENGINE
+        // ===========================================================
+        const SECTION_COUNT = 6;
+        const sections = [];
+        const storyCards = [];
+        const cardWrappers = [];
+        const progressDots = document.querySelectorAll('.progress-dot');
+
+        const gantryShuttle = document.getElementById('gantryShuttle');
+        const shuttleBlock = document.getElementById('shuttleBlock');
+        const shuttleCoords = document.getElementById('shuttleCoords');
+        const clawPendulum = document.getElementById('clawPendulum');
+        const theClaw = document.getElementById('theClaw');
+        const rope = document.getElementById('rope');
+        const heroImage = document.getElementById('heroImage');
+        const skyLayer = document.getElementById('skyLayer');
+        const sunbeams = document.getElementById('sunbeams');
+
+        const telemetryDot = document.getElementById('telemetryDot');
+        const telemetryState = document.getElementById('telemetryState');
+        const telemetryXYZ = document.getElementById('telemetryXYZ');
+        const telemetryCoil = document.getElementById('telemetryCoil');
+
+        for (let i = 0; i < SECTION_COUNT; i++) {
+            sections.push(document.getElementById(`sec${i}`));
+            storyCards.push(document.getElementById(`storyCard${i}`));
+            cardWrappers.push(document.getElementById(`wrapper${i}`));
+        }
+
+        // Scenic sky gradient palettes per chapter
+        const skyPalettes = [
+            ['#ffffff', '#dfeefb', '#b4d6f0'], // 00: Crisp Morning Sky
+            ['#f8fcff', '#d6ecfb', '#9fcbee'], // 01: CoreXY Blueprint Sky
+            ['#fff8fa', '#e4effc', '#b7d4f0'], // 02: Warm Candy-Red & Cloud Bed
+            ['#fffdf9', '#e2f0fb', '#b2d4ec'], // 03: Sunlit Loft Daylight
+            ['#f4f9ff', '#d1e7fa', '#9bc5ea'], // 04: Smart Telemetry Horizon
+            ['#fff9f5', '#e5eefb', '#b8d4f0'], // 05: Golden Hour Commission Finale
+        ];
+
+        // Base choreography (fallback & horizontal percentages matching card shackles!)
+        // Notice x matches each card's `--shackle-x` (34%, 66%, 36%, 64%)
+        const clawChoreography = [
+            { x: 50, yRatio: 0.04, grip: false, state: 'HOVER // READY', coil: 'OPEN' },
+            { x: 34, yRatio: 0.16, grip: true, state: 'LOCKED // CH-01', coil: '100% PWM' },
+            { x: 66, yRatio: 0.16, grip: true, state: 'LOCKED // CH-02', coil: '100% PWM' },
+            { x: 36, yRatio: 0.16, grip: true, state: 'LOCKED // CH-03', coil: '100% PWM' },
+            { x: 64, yRatio: 0.16, grip: true, state: 'LOCKED // CH-04', coil: '100% PWM' },
+            { x: 50, yRatio: 0.03, grip: false, state: 'STANDBY // CUSTOM', coil: 'OPEN' },
+        ];
+
+        // Physics state
+        let clawState = { x: 50, y: 24, angle: 0, angularVel: 0 };
+        let clawTarget = { x: 50, y: 24 };
+        let currentSection = 0;
+
+        // Manual override state for interactive arcade controls
+        let manualModeUntil = 0;
+        let manualJogDir = 0;
+        let isManualDropping = false;
+        let mouseNorm = { x: 0, y: 0 };
+
+        function getScrollProgress() {
+            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+            const maxScroll = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+            return Math.max(0, Math.min(1, scrollTop / maxScroll));
+        }
+
+        // Compute exact vertical claw target so the claw fingers clasp the active card's top shackle!
+        function getTargetYForSection(secIndex) {
+            const vh = window.innerHeight;
+            const clawH = theClaw.offsetHeight || 265;
+            const wrapper = cardWrappers[secIndex];
+            if (wrapper && secIndex >= 1 && secIndex <= 4) {
+                const rect = wrapper.getBoundingClientRect();
+                // Position claw so its red finger tips (approx 86% down claw box) meet the card's top shackle
+                const desiredBottom = Math.max(150, Math.min(vh * 0.42, rect.top + 8));
+                return Math.max(10, desiredBottom - clawH * 0.85);
+            }
+            return vh * clawChoreography[secIndex].yRatio;
+        }
+
+        function onScrollUpdate() {
+            const progress = getScrollProgress();
+            const sectionSmooth = progress * (SECTION_COUNT - 1);
+            const sectionIndex = Math.round(sectionSmooth);
+
+            const lower = Math.floor(sectionSmooth);
+            const upper = Math.min(lower + 1, SECTION_COUNT - 1);
+            const t = sectionSmooth - lower;
+            // Smoothstep interpolation for mechanical acceleration/deceleration
+            const smoothT = t * t * (3 - 2 * t);
+
+            const from = clawChoreography[lower];
+            const to = clawChoreography[upper];
+
+            // Only update from scroll if user isn't actively jogging or dropping the claw manually
+            if (Date.now() > manualModeUntil && !isManualDropping) {
+                clawTarget.x = from.x + (to.x - from.x) * smoothT;
+                const yFrom = getTargetYForSection(lower);
+                const yTo = getTargetYForSection(upper);
+                // Add a slight lift arc between cards so the claw lifts up before plunging onto the next shackle
+                const liftArc = Math.sin(t * Math.PI) * -55;
+                clawTarget.y = yFrom + (yTo - yFrom) * smoothT + liftArc;
+            }
+
+            if (sectionIndex !== currentSection) {
+                changeSection(sectionIndex);
+            }
+
+            // Hero interior image parallax + smooth dissolve
+            const heroOpacity = Math.max(0, 1 - progress * 3.8);
+            const heroScale = 1 + progress * 0.24;
+            heroImage.style.opacity = heroOpacity;
+            heroImage.style.transform = `scale(${heroScale}) translate3d(${mouseNorm.x * -12}px, ${mouseNorm.y * -8}px, 0)`;
+
+            // Progress dots
+            progressDots.forEach((dot, i) => {
+                dot.classList.toggle('active', i === sectionIndex);
+            });
+        }
+
+        function changeSection(newIndex) {
+            const oldIndex = currentSection;
+            currentSection = newIndex;
+
+            sections.forEach((sec, i) => {
+                sec.classList.remove('active', 'exiting-up', 'exiting-down');
+                if (i === newIndex) {
+                    sec.classList.add('active');
+                } else if (i < newIndex) {
+                    sec.classList.add('exiting-up');
+                } else {
+                    sec.classList.add('exiting-down');
+                }
+            });
+
+            // Update sky atmosphere palette
+            const pal = skyPalettes[newIndex] || skyPalettes[0];
+            skyLayer.style.background = `linear-gradient(180deg, ${pal[0]} 0%, ${pal[1]} 45%, ${pal[2]} 100%)`;
+
+            // Claw grip choreography
+            const choreo = clawChoreography[newIndex];
+            telemetryState.textContent = choreo.state;
+            telemetryCoil.textContent = choreo.coil;
+
+            storyCards.forEach(c => { if (c) c.classList.remove('claw-attached'); });
+
+            if (choreo.grip) {
+                setTimeout(() => {
+                    if (currentSection === newIndex) {
+                        theClaw.classList.add('gripping');
+                        shuttleBlock.classList.add('gripping');
+                        telemetryDot.classList.add('engaged');
+                        const card = storyCards[newIndex];
+                        if (card) card.classList.add('claw-attached');
+                        audio.playGrab();
+                    }
+                }, 260);
+            } else {
+                theClaw.classList.remove('gripping');
+                shuttleBlock.classList.remove('gripping');
+                telemetryDot.classList.remove('engaged');
+            }
+
+            if (oldIndex !== newIndex) {
+                audio.playWhoosh();
+            }
+        }
+
+        // ===========================================================
+        // 3. INTERACTIVE FREE-PLAY CAPSULE CATCHING & MANUAL JOG
+        // ===========================================================
+        const capsuleData = [
+            { emoji: '⭐', x: 16, y: 26, tint: 'rgba(56, 189, 248, 0.45)', msg: 'Caught Star Capsule! 640 steps/mm CoreXY resolution = 0.0015mm repeatability.' },
+            { emoji: '🧸', x: 83, y: 24, tint: 'rgba(244, 63, 94, 0.38)', msg: 'Caught Plushie Capsule! PWM Claw grip force is tunable per game in Home Assistant.' },
+            { emoji: '☁️', x: 18, y: 66, tint: 'rgba(168, 85, 247, 0.35)', msg: 'Caught Cloud Capsule! Hand-sculpted cloud prize bed cushions every drop.' },
+            { emoji: '💎', x: 82, y: 64, tint: 'rgba(245, 158, 11, 0.40)', msg: 'Caught Bespoke Capsule! Every CloudCatcher is custom built to order.' }
+        ];
+
+        const capsules = [];
+        let caughtCount = 0;
+
+        function initCapsules() {
+            const layer = document.getElementById('capsuleLayer');
+            capsuleData.forEach((data, idx) => {
+                const el = document.createElement('div');
+                el.className = 'prize-capsule';
+                el.style.left = `${data.x}%`;
+                el.style.top = `${data.y}%`;
+                el.style.setProperty('--cap-tint', data.tint);
+                el.style.animationDelay = `-${idx * 1.3}s`;
+                el.innerHTML = `<span>${data.emoji}</span>`;
+                el.title = 'Click to send the CoreXY claw to catch this prize capsule!';
+
+                const capObj = { el, x: data.x, y: data.y, msg: data.msg, emoji: data.emoji, caught: false };
+                capsules.push(capObj);
+
+                el.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    sendClawToCapsule(capObj);
+                });
+
+                layer.appendChild(el);
+            });
+        }
+
+        function showCatchToast(emoji, text) {
+            const toast = document.getElementById('catchToast');
+            document.getElementById('catchToastIcon').textContent = emoji;
+            document.getElementById('catchToastText').textContent = text;
+            toast.classList.add('visible');
+            clearTimeout(window._toastTimer);
+            window._toastTimer = setTimeout(() => {
+                toast.classList.remove('visible');
+            }, 4200);
+        }
+
+        function sendClawToCapsule(capObj) {
+            if (isManualDropping) return;
+            manualModeUntil = Date.now() + 5000;
+            clawTarget.x = capObj.x;
+            audio.playWhoosh();
+            setTimeout(() => {
+                triggerManualGrab(capObj);
+            }, 420);
+        }
+
+        window.startManualJog = function (dir) {
+            manualJogDir = dir;
+            manualModeUntil = Date.now() + 6000;
+        };
+
+        window.stopManualJog = function () {
+            manualJogDir = 0;
+        };
+
+        window.triggerManualGrab = function (targetCapsule = null) {
+            if (isManualDropping) return;
+            isManualDropping = true;
+            manualModeUntil = Date.now() + 4500;
+
+            const savedY = clawTarget.y;
+            const vh = window.innerHeight;
+            const clawH = theClaw.offsetHeight || 265;
+
+            // Determine drop depth
+            let dropY = Math.min(vh * 0.45, savedY + 180);
+            if (targetCapsule) {
+                const capPxY = (targetCapsule.y / 100) * vh;
+                dropY = Math.max(20, capPxY - clawH * 0.78);
+            }
+
+            telemetryState.textContent = 'DESCENDING // Z-DOWN';
+            theClaw.classList.remove('gripping');
+            audio.playWhoosh();
+            clawTarget.y = dropY;
+
+            // Close claw at bottom of plunge
+            setTimeout(() => {
+                theClaw.classList.add('gripping');
+                shuttleBlock.classList.add('gripping');
+                telemetryDot.classList.add('engaged');
+                telemetryState.textContent = 'GRIPPING // 100% PWM';
+                telemetryCoil.textContent = '100% PWM';
+                audio.playGrab();
+
+                // Check if any capsule is within reach
+                const clawTipX = clawState.x;
+                const clawTipY = ((clawState.y + clawH * 0.82) / vh) * 100;
+
+                let grabbed = targetCapsule;
+                if (!grabbed) {
+                    grabbed = capsules.find(c => !c.caught && Math.abs(c.x - clawTipX) < 10 && Math.abs(c.y - clawTipY) < 18);
+                }
+
+                if (grabbed && !grabbed.caught) {
+                    grabbed.caught = true;
+                    caughtCount++;
+                    document.getElementById('hudScoreLabel').textContent = `CAPSULES: ${caughtCount}/${capsules.length}`;
+                    grabbed.el.classList.add('caught');
+                    audio.playWinFanfare();
+                    showCatchToast(grabbed.emoji, grabbed.msg);
+                }
+
+                // Retract upward
+                setTimeout(() => {
+                    telemetryState.textContent = 'RETRACTING // Z-UP';
+                    clawTarget.y = getTargetYForSection(currentSection);
+
+                    if (grabbed && grabbed.el.classList.contains('caught')) {
+                        setTimeout(() => {
+                            grabbed.el.style.transition = 'transform 0.5s ease, opacity 0.5s ease';
+                            grabbed.el.style.transform = 'scale(1.6)';
+                            grabbed.el.style.opacity = '0';
+                            // Respawn capsule after 8 seconds so visitors can keep playing
+                            setTimeout(() => {
+                                grabbed.caught = false;
+                                grabbed.el.classList.remove('caught');
+                                grabbed.el.style.transition = '';
+                                grabbed.el.style.transform = '';
+                                grabbed.el.style.opacity = '1';
+                                grabbed.el.style.left = `${grabbed.x}%`;
+                                grabbed.el.style.top = `${grabbed.y}%`;
+                            }, 8000);
+                        }, 550);
+                    }
+
+                    setTimeout(() => {
+                        isManualDropping = false;
+                        const choreo = clawChoreography[currentSection];
+                        telemetryState.textContent = choreo.state;
+                        telemetryCoil.textContent = choreo.coil;
+                        if (!choreo.grip) {
+                            theClaw.classList.remove('gripping');
+                            shuttleBlock.classList.remove('gripping');
+                            telemetryDot.classList.remove('engaged');
+                        }
+                    }, 550);
+                }, 420);
+            }, 480);
+        };
+
+        // ===========================================================
+        // 4. 60FPS PHYSICS & TELEMETRY RENDER LOOP
+        // ===========================================================
+        function renderLoop() {
+            // Apply continuous manual jog if button/key held
+            if (manualJogDir !== 0) {
+                clawTarget.x = Math.max(12, Math.min(88, clawTarget.x + manualJogDir * 0.55));
+                manualModeUntil = Date.now() + 4000;
+            }
+
+            const prevX = clawState.x;
+            // Smooth exponential lerp toward target
+            clawState.x += (clawTarget.x - clawState.x) * 0.095;
+            clawState.y += (clawTarget.y - clawState.y) * 0.095;
+
+            // Horizontal velocity drives real pendulum angular acceleration
+            const velX = clawState.x - prevX;
+            const targetAngle = Math.max(-16, Math.min(16, -velX * 7.5));
+            const springForce = (targetAngle - clawState.angle) * 0.14;
+            clawState.angularVel = (clawState.angularVel + springForce) * 0.82;
+            clawState.angle += clawState.angularVel;
+
+            // 1. Update CoreXY Shuttle position along upper linear rail
+            gantryShuttle.style.left = `${clawState.x}%`;
+
+            // 2. Update Pendulum anchor & rotation around the shuttle pulley!
+            clawPendulum.style.left = `${clawState.x}%`;
+            clawPendulum.style.transform = `rotate(${clawState.angle.toFixed(2)}deg)`;
+
+            // 3. Extend braided steel cable seamlessly into top of claw_cutout.png
+            const ropeHeight = Math.max(12, clawState.y + 16);
+            rope.style.height = `${ropeHeight}px`;
+            theClaw.style.top = `${clawState.y}px`;
+
+            // 4. If a capsule is currently being lifted, lock it to the claw fingers
+            const clawH = theClaw.offsetHeight || 265;
+            capsules.forEach(c => {
+                if (c.caught && c.el.style.opacity !== '0') {
+                    c.el.style.left = `calc(${clawState.x}% - 28px)`;
+                    c.el.style.top = `${clawState.y + clawH * 0.72}px`;
+                }
+            });
+
+            // 5. Sympathetic sway on the currently held Story Card
+            const activeWrapper = cardWrappers[currentSection];
+            if (activeWrapper && clawChoreography[currentSection]?.grip) {
+                const cardSwayX = clawState.angle * -1.4 + mouseNorm.x * 8;
+                const cardSwayY = mouseNorm.y * 6;
+                const tiltX = mouseNorm.y * -3.5;
+                const tiltY = mouseNorm.x * 4.5 + clawState.angle * 0.35;
+                activeWrapper.style.transform = `translate3d(${cardSwayX.toFixed(1)}px, ${cardSwayY.toFixed(1)}px, 0) rotateX(${tiltX.toFixed(2)}deg) rotateY(${tiltY.toFixed(2)}deg)`;
+            }
+
+            // 6. Update real-time millimeter telemetry readouts (220x220x200mm workspace)
+            const mmX = ((clawState.x / 100) * 220).toFixed(1);
+            const mmY = (110 + Math.sin(clawState.x * 0.08) * 45).toFixed(0);
+            const mmZ = Math.max(0, Math.min(200, (clawState.y / (window.innerHeight * 0.45)) * 200)).toFixed(1);
+
+            shuttleCoords.textContent = `X:${mmX} Z:${mmZ}`;
+            telemetryXYZ.textContent = `X:${mmX} Y:${mmY} Z:${mmZ}mm`;
+
+            requestAnimationFrame(renderLoop);
+        }
+
+        // Mouse parallax & card glare tracker
+        window.addEventListener('pointermove', (e) => {
+            mouseNorm.x = (e.clientX / window.innerWidth - 0.5) * 2;
+            mouseNorm.y = (e.clientY / window.innerHeight - 0.5) * 2;
+
+            if (sunbeams) {
+                sunbeams.style.transform = `translate3d(${mouseNorm.x * -18}px, ${mouseNorm.y * -10}px, 0)`;
+            }
+
+            const activeCard = storyCards[currentSection];
+            if (activeCard) {
+                const rect = activeCard.getBoundingClientRect();
+                const mx = e.clientX - rect.left;
+                const my = e.clientY - rect.top;
+                activeCard.style.setProperty('--mouse-x', `${mx}px`);
+                activeCard.style.setProperty('--mouse-y', `${my}px`);
+            }
+        }, { passive: true });
+
+        // Scroll listener
+        let scrollRaf = null;
+        window.addEventListener('scroll', () => {
+            if (scrollRaf) cancelAnimationFrame(scrollRaf);
+            scrollRaf = requestAnimationFrame(onScrollUpdate);
+        }, { passive: true });
+
+        window.addEventListener('resize', () => {
+            onScrollUpdate();
+        });
+
+        // Navigate to section
+        window.scrollToSection = function (index) {
+            manualModeUntil = 0;
+            const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+            const targetY = (index / (SECTION_COUNT - 1)) * maxScroll;
+            window.scrollTo({ top: targetY, behavior: 'smooth' });
+        };
+
+        // Keyboard navigation + Arcade controls (A/D to jog, Space to drop claw!)
+        window.addEventListener('keydown', (e) => {
+            // Ignore when typing in form inputs
+            if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) return;
+
+            if (e.key === 'ArrowDown' || e.key === 'PageDown') {
+                e.preventDefault();
+                scrollToSection(Math.min(currentSection + 1, SECTION_COUNT - 1));
+            } else if (e.key === 'ArrowUp' || e.key === 'PageUp') {
+                e.preventDefault();
+                scrollToSection(Math.max(currentSection - 1, 0));
+            } else if (e.key === 'a' || e.key === 'A' || e.key === 'ArrowLeft') {
+                startManualJog(-1);
+            } else if (e.key === 'd' || e.key === 'D' || e.key === 'ArrowRight') {
+                startManualJog(1);
+            } else if (e.key === ' ') {
+                e.preventDefault();
+                triggerManualGrab();
+            } else if (e.key === 'Escape') {
+                closeModal();
+                closeSpecsModal();
+                closeLightbox();
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (['a', 'A', 'd', 'D', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                stopManualJog();
+            }
+        });
+
+        // ===========================================================
+        // 5. LAYERED SCENIC CLOUDS & WARM BOKEH PARTICLES
+        // ===========================================================
+        function createCloud(container, preheat) {
+            const files = ['cloud01.webp', 'cloud02.webp', 'cloud03.webp'];
+            const wrapper = document.createElement('div');
+            wrapper.className = 'cloud-wrapper';
+            const cloud = document.createElement('div');
+            cloud.className = 'cloud';
+
+            const file = files[Math.floor(Math.random() * files.length)];
+            const r = Math.random();
+            const depth = r < 0.52 ? 0 : r < 0.84 ? 1 : 2;
+
+            let scale, dur, opacity;
+            if (depth === 0) {
+                scale = 0.65 + Math.random() * 0.45;
+                dur = 155 + Math.random() * 45;
+                opacity = 0.24 + Math.random() * 0.12;
+            } else if (depth === 1) {
+                scale = 1.25 + Math.random() * 0.75;
+                dur = 92 + Math.random() * 30;
+                opacity = 0.50 + Math.random() * 0.16;
+            } else {
+                scale = 2.3 + Math.random() * 1.25;
+                dur = 58 + Math.random() * 24;
+                opacity = 0.74 + Math.random() * 0.15;
+            }
+
+            if (window.innerWidth < 768) dur *= 0.5;
+
+            const top = Math.random() * (container.getBoundingClientRect().height || window.innerHeight);
+            wrapper.style.top = `${top}px`;
+            wrapper.dataset.depth = depth;
+
+            const delay = preheat ? -(Math.random() * dur) : 0;
+            const sx = Math.random() > 0.5 ? 1 : -1;
+
+            // Dual background-image fallback so clouds always render whether from root or frontend/
+            cloud.style.cssText = `
+            background-image: url('frontend/assets/${file}'), url('assets/${file}');
+            width: ${290 * scale}px;
+            height: ${155 * scale}px;
+            opacity: ${opacity};
+            --cloud-scale-x: ${sx};
+            animation: cloudFly ${dur}s linear forwards;
+            animation-delay: ${delay}s;
+        `;
+
+            wrapper.appendChild(cloud);
+            container.appendChild(wrapper);
+
+            setTimeout(() => wrapper.remove(), (dur + Math.abs(delay)) * 1000 + 600);
+        }
+
+        function initClouds() {
+            const h = skyLayer.getBoundingClientRect().height || window.innerHeight;
+            const count = Math.min(95, Math.max(28, Math.round(h / 32)));
+            for (let i = 0; i < count; i++) createCloud(skyLayer, true);
+
+            function schedule() {
+                setTimeout(() => {
+                    createCloud(skyLayer, false);
+                    schedule();
+                }, 850 + Math.random() * 1100);
+            }
+            schedule();
+        }
+
+        function initParticles() {
+            const layer = document.getElementById('particleLayer');
+            const count = window.innerWidth < 768 ? 36 : 80;
+
+            for (let i = 0; i < count; i++) {
+                const p = document.createElement('div');
+                p.className = 'particle';
+
+                const size = 2 + Math.random() * 5;
+                const x = Math.random() * 100;
+                const y = Math.random() * 100;
+                const dx = (Math.random() - 0.5) * 280;
+                const dy = -80 - Math.random() * 200;
+                const dur = 6 + Math.random() * 13;
+                const delay = Math.random() * dur;
+                const isWarm = Math.random() > 0.62;
+                const r = isWarm ? 250 : 255;
+                const g = isWarm ? 190 : 255;
+                const b = isWarm ? 60 : 255;
+                const alpha = 0.35 + Math.random() * 0.55;
+
+                p.style.cssText = `
+                left: ${x}%;
+                top: ${y}%;
+                width: ${size}px;
+                height: ${size}px;
+                --px-dx: ${dx}px;
+                --px-dy: ${dy}px;
+                animation-duration: ${dur}s;
+                animation-delay: -${delay}s;
+                background: rgba(${r},${g},${b},${alpha});
+                box-shadow: 0 0 ${size * 2}px rgba(${r},${g},${b},${alpha * 0.8});
+            `;
+                layer.appendChild(p);
+            }
+        }
+
+        // ===========================================================
+        // 6. EDITION CONFIGURATOR, LIGHTBOX & MODALS
+        // ===========================================================
+        let selectedEditionValue = 'Custom Build — CloudCatcher Original (Pastel Sky Blue / Candy Red Claw)';
+
+        window.selectEdition = function (cardEl) {
+            document.querySelectorAll('.edition-option').forEach(el => el.classList.remove('selected'));
+            cardEl.classList.add('selected');
+            const title = cardEl.querySelector('.edition-title')?.textContent || 'CloudCatcher';
+            document.getElementById('selectedEditionBtnLabel').textContent = title;
+            selectedEditionValue = cardEl.dataset.edition || title;
+            audio.playGrab();
+        };
+
+        const modal = document.getElementById('inquiryModal');
+        const specsModal = document.getElementById('specsModal');
+        const lightboxModal = document.getElementById('lightboxModal');
+
+        window.openModal = () => {
+            const select = document.getElementById('clawContactType');
+            if (select && selectedEditionValue) {
+                for (const opt of select.options) {
+                    if (opt.value.includes(selectedEditionValue.split('(')[0].trim())) {
+                        select.value = opt.value;
+                        break;
+                    }
+                }
+            }
+            modal.classList.add('open');
+        };
+        window.closeModal = () => modal.classList.remove('open');
+        modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+
+        window.openSpecsModal = () => specsModal.classList.add('open');
+        window.closeSpecsModal = () => specsModal.classList.remove('open');
+        specsModal.addEventListener('click', (e) => { if (e.target === specsModal) closeSpecsModal(); });
+
+        window.openLightbox = (filename, title) => {
+            const img = document.getElementById('lightboxImg');
+            img.onerror = function () {
+                this.onerror = null;
+                this.src = 'assets/' + filename;
+            };
+            img.src = resolveAsset(filename);
+            document.getElementById('lightboxTitle').textContent = title;
+            lightboxModal.classList.add('open');
+        };
+        window.closeLightbox = () => lightboxModal.classList.remove('open');
+
+        // Inquiry form submission (preserves existing multi-endpoint PHP + mailto fallback)
+        window.handleSubmit = async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('clawContactName')?.value.trim() || '';
+            const email = document.getElementById('clawContactEmail')?.value.trim() || '';
+            const type = document.getElementById('clawContactType')?.value.trim() || 'Claw Machine Inquiry';
+            const message = document.getElementById('clawContactMessage')?.value.trim() || '';
+            const honeypot = document.getElementById('clawWebsiteUrl')?.value || '';
+            const feedback = document.getElementById('clawContactFeedback');
+            const submitBtn = document.getElementById('clawContactSubmit');
+
+            if (!name || !email || !message) return;
+
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Sending...';
+            }
+            if (feedback) {
+                feedback.style.display = 'none';
+            }
+
+            const payload = {
+                name,
+                email,
+                subject: `Claw Machine: ${type}`,
+                category: 'Claw Machine',
+                source: 'clawmachine',
+                message,
+                website_url: honeypot,
+                lang: 'en'
+            };
+
+            const endpoints = ['frontend/api/contact.php', 'api/contact.php', 'https://michaelkrahn.de/api/contact.php'];
+            let sent = false;
+            let lastError = null;
+
+            for (const url of endpoints) {
+                try {
+                    const res = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                        body: JSON.stringify(payload)
+                    });
+                    const raw = await res.text();
+                    if (raw.includes('<?php')) continue;
+                    const data = JSON.parse(raw);
+                    if (res.ok && data && data.success) {
+                        sent = true;
+                        break;
+                    } else if (data && data.error) {
+                        lastError = data.error;
+                    }
+                } catch (_) {
+                    // Try next endpoint
+                }
+            }
+
+            if (sent) {
+                audio.playWinFanfare();
+                if (feedback) {
+                    feedback.style.display = 'block';
+                    feedback.style.background = '#ecfdf5';
+                    feedback.style.color = '#065f46';
+                    feedback.style.border = '1px solid #a7f3d0';
+                    feedback.innerHTML = '✨ Inquiry sent! A confirmation was sent to your email.';
+                }
+                document.getElementById('clawInquiryForm')?.reset();
+                setTimeout(() => closeModal(), 1600);
+            } else {
+                const mailtoUrl = `mailto:info@michaelkrahn.de?subject=${encodeURIComponent(payload.subject)}&body=${encodeURIComponent(`Name: ${name}\nEmail: ${email}\nEdition: ${type}\n\n${message}`)}`;
+                if (feedback) {
+                    feedback.style.display = 'block';
+                    feedback.style.background = '#fef2f2';
+                    feedback.style.color = '#991b1b';
+                    feedback.style.border = '1px solid #fecaca';
+                    feedback.innerHTML = `${lastError ? lastError + ' ' : ''}<a href="${mailtoUrl}" style="text-decoration:underline; font-weight:700; color:inherit;">Send directly to info@michaelkrahn.de ↗</a>`;
+                }
+            }
+
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = '✨ Send Commission Inquiry';
+            }
+        };
+
+        // ===========================================================
+        // INIT
+        // ===========================================================
+        initClouds();
+        initParticles();
+        initCapsules();
+        onScrollUpdate();
+        requestAnimationFrame(renderLoop);
+    </script>
+</body>
+
+</html>
